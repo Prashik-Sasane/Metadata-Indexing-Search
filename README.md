@@ -44,46 +44,7 @@ Build a **multi-layer indexing engine** in front of Postgres that uses:
 
 ## 🏗️ System Architecture Overview
 
-```
-┌────────────────────────────────────────────────────────────┐
-│                        CLIENTS                             │
-│              React Frontend / REST Clients                 │
-└─────────────────────────┬──────────────────────────────────┘
-                          │ HTTPS
-┌─────────────────────────▼──────────────────────────────────┐
-│               AWS Application Load Balancer                │
-└─────────────────────────┬──────────────────────────────────┘
-                          │
-┌─────────────────────────▼──────────────────────────────────┐
-│              API Gateway / Nginx Ingress (K8s)             │
-└──────┬─────────────────┬──────────────────┬────────────────┘
-       │                 │                  │
-┌──────▼──────┐  ┌───────▼──────┐  ┌───────▼──────┐
-│  Metadata   │  │   Search     │  │   Ingest     │
-│  Service    │  │   Service    │  │   Service    │
-│  (Go)       │  │   (Go)       │  │   (Go)       │
-└──────┬──────┘  └───────┬──────┘  └───────┬──────┘
-       │                 │                  │
-       │         ┌───────▼──────────────────┘
-       │         │    In-Memory Index Engine (Go)
-       │         │  ┌─────────────────────────────┐
-       │         │  │  Trie (prefix)              │
-       │         │  │  B+ Tree (range queries)    │
-       │         │  │  AVL Tree (equality)        │
-       │         │  │  Min/Max Heap (top-K)       │
-       │         │  │  B Tree (disk persistence)  │
-       │         │  └─────────────────────────────┘
-       │         │            │ WAL / Snapshot
-       │  ┌──────▼────────────▼──────┐
-       │  │       PostgreSQL         │
-       │  │  (Source of Truth DB)    │
-       │  └──────────────────────────┘
-       │
-┌──────▼───────────┐
-│    AWS S3        │
-│  (File Storage)  │
-└──────────────────┘
-```
+<img width="1654" height="702" alt="image" src="https://github.com/user-attachments/assets/e9fb1fee-61e9-413f-997f-7bad68828117" />
 
 ---
 
