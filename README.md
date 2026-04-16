@@ -1,11 +1,13 @@
-# 🗂️ Metadata Indexing & Search System
+# Metadata Indexing & Search System
 ### *High-Performance, Large-Scale File Metadata Engine — Inspired by AWS S3*
 
 > **Goal:** Build a system capable of indexing and searching metadata across **millions of files** with sub-millisecond lookup times — bypassing slow full-database scans using in-memory + on-disk data structures (DSA-first approach).
 
+> **Status:** ✅ Backend with DSA Engine, PostgreSQL, and Docker infrastructure is **COMPLETE and READY TO USE**. See [QUICKSTART.md](QUICKSTART.md) to get started in 5 minutes.
+
 ---
 
-## 📌 Table of Contents
+## Table of Contents
 
 1. [Problem Statement](#-problem-statement)
 2. [System Architecture Overview](#-system-architecture-overview)
@@ -20,7 +22,7 @@
 
 ---
 
-## 🧩 Problem Statement
+## Problem Statement
 
 In large-scale object storage systems like **AWS S3**, you can have **hundreds of millions of objects** (files). When a user searches for a file by name, tag, prefix, or date — **querying the raw database every time is catastrophically slow**:
 
@@ -28,7 +30,7 @@ In large-scale object storage systems like **AWS S3**, you can have **hundreds o
 - Even with B-Tree indexes in Postgres, prefix queries across 100M rows take **seconds**
 - No pre-built index means repeated cold-reads and cache misses
 
-### ✅ Our Solution
+### Our Solution
 
 Build a **multi-layer indexing engine** in front of Postgres that uses:
 
@@ -42,7 +44,7 @@ Build a **multi-layer indexing engine** in front of Postgres that uses:
 
 ---
 
-## 🏗️ System Architecture Overview
+##  System Architecture Overview
 
 <img width="1654" height="702" alt="image" src="https://github.com/user-attachments/assets/e9fb1fee-61e9-413f-997f-7bad68828117" />
 
