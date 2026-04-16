@@ -1,13 +1,3 @@
-/**
- * AVL Tree (Self-Balancing Binary Search Tree)
- * Time Complexity:
- *   - Search: O(log N)
- *   - Insert: O(log N)
- *   - Delete: O(log N)
- * 
- * Use Case: Tag-based lookups, equality searches, owner-based queries
- * Guarantees O(log N) through strict balance factor enforcement
- */
 
 class AVLNode {
   constructor(key, fileID) {
@@ -25,11 +15,6 @@ class AVLTree {
     this.size = 0;
   }
 
-  /**
-   * Insert a key-fileID pair into the AVL tree
-   * @param {string} key - Tag or metadata value
-   * @param {string} fileID - File UUID
-   */
   insert(key, fileID) {
     if (!key || !fileID) {
       throw new Error('Key and fileID are required');

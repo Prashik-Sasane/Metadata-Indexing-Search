@@ -33,13 +33,13 @@ docker-compose logs -f backend
 cd backend
 npm install
 
-# 2. Start PostgreSQL locally (or use Docker)
-docker run -d --name postgres \
-  -e POSTGRES_DB=metadata_search \
-  -e POSTGRES_USER=admin \
-  -e POSTGRES_PASSWORD=secret \
-  -p 5432:5432 \
-  postgres:16-alpine
+# 2. Start MySQL locally (or use Docker)
+docker run -d --name metadata-search-mysql \
+  -e MYSQL_DATABASE=metadata_search \
+  -e MYSQL_USER=admin \
+  -e MYSQL_PASSWORD=secret \
+  -p 3308:3306 \
+  mysql:8.0
 
 # 3. Run migrations
 npm run migrate

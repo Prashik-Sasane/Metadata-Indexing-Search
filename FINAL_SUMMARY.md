@@ -176,11 +176,11 @@ npm run dev
 
 ```bash
 # Terminal 1: Start PostgreSQL
-docker run -d --name postgres \
-  -e POSTGRES_DB=metadata_search \
-  -e POSTGRES_USER=admin \
-  -e POSTGRES_PASSWORD=secret \
-  -p 5432:5432 postgres:16-alpine
+docker run -d --name mysql \
+  -e MYSQL_DATABASE_NAME=metadata_search \
+  -e MYSQL_USER=root \
+  -e MYSQL_PASSWORD=12410279 \
+  -p 3306:3306 mysql:8.0-alpine
 
 # Terminal 2: Backend
 cd backend

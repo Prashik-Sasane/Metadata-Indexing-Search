@@ -25,7 +25,15 @@ async function runMigrations() {
     console.log(`[Migration] Running ${file}...`);
     
     try {
-      await pool.query(sql);
+      // Split the SQL script by semicolons since mysql2 doesn't execute multiple statements well by default
+      const statements = sql
+        .split(';')
+        .map(stmt => stmt.trim())
+        .filter(stmt => stmt.length > 0);
+
+      for (const statement of statements) {
+        await pool.query(statement);
+      }
       console.log(`[Migration] ✓ ${file} completed`);
     } catch (error) {
       console.error(`[Migration] ✗ ${file} failed:`, error.message);

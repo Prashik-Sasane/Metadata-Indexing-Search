@@ -3,7 +3,7 @@
  * Routes queries to appropriate DSA structures and hydrates results
  */
 
-const { query } = require('../config/db');
+const { query } = require('../../config/db');
 
 class SearchService {
   constructor(indexManager) {
@@ -119,7 +119,7 @@ class SearchService {
           fm.custom
         FROM files f
         LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        WHERE f.id = ANY($1) AND f.is_deleted = FALSE
+        WHERE f.id IN (?) AND f.is_deleted = FALSE
         ORDER BY f.created_at DESC`,
         [fileIDs]
       );
@@ -181,8 +181,8 @@ class SearchService {
       const stats = this.indexManager.getStats();
       
       // Get database stats
-      const fileCount = await query('SELECT COUNT(*) FROM files WHERE is_deleted = FALSE');
-      const totalSize = await query('SELECT SUM(size) FROM files WHERE is_deleted = FALSE');
+      const fileCount = await query('SELECT COUNT(*) as count FROM files WHERE is_deleted = FALSE');
+      const totalSize = await query('SELECT SUM(size) as sum FROM files WHERE is_deleted = FALSE');
 
       return {
         dsaIndexes: stats,

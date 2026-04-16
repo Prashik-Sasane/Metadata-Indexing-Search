@@ -8,7 +8,6 @@
  * 
  * Use Case: File size ranges, date ranges, numeric range queries
  */
-
 class BPlusTreeNode {
   constructor(isLeaf = false) {
     this.keys = []; // Sorted array of keys

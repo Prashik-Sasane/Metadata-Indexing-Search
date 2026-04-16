@@ -3,7 +3,7 @@
  */
 
 const { SearchService } = require('../services/searchService');
-const { IndexManager } = require('../../dsa/indexManager');
+const { IndexManager } = require('../dsa/indexManager');
 
 // Singleton instances
 const indexManager = new IndexManager();

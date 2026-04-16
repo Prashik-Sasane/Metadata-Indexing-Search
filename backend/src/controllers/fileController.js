@@ -4,7 +4,7 @@
 
 const { IngestService } = require('../services/ingestService');
 const { MetadataService } = require('../services/metadataService');
-const { IndexManager } = require('../../dsa/indexManager');
+const { IndexManager } = require('../dsa/indexManager');
 const { z } = require('zod');
 
 // Singleton instances

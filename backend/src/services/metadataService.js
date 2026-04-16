@@ -2,8 +2,7 @@
  * Metadata Service - CRUD operations for file metadata
  * Manages file metadata in PostgreSQL and updates DSA indexes
  */
-
-const { query } = require('../config/db');
+const { query } = require('../../config/db');
 const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
@@ -35,7 +34,7 @@ class MetadataService {
           fm.custom
         FROM files f
         LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        WHERE f.id = $1 AND f.is_deleted = FALSE`,
+        WHERE f.id = ? AND f.is_deleted = FALSE`,
         [fileId]
       );
 
@@ -81,8 +80,8 @@ class MetadataService {
       // 2. Update tags in PostgreSQL
       await query(
         `UPDATE file_metadata 
-         SET tags = $1, custom = COALESCE(custom, '{}')
-         WHERE file_id = $2`,
+         SET tags = ?, custom = COALESCE(custom, '{}')
+         WHERE file_id = ?`,
         [JSON.stringify(newTags), fileId]
       );
 
@@ -130,7 +129,7 @@ class MetadataService {
       await query(
         `UPDATE files 
          SET is_deleted = TRUE, updated_at = NOW() 
-         WHERE id = $1`,
+         WHERE id = ?`,
         [fileId]
       );
 
@@ -167,23 +166,20 @@ class MetadataService {
     try {
       let whereClause = 'WHERE f.is_deleted = FALSE';
       const queryParams = [];
-      let paramIndex = 1;
 
       if (owner_id) {
-        whereClause += ` AND f.owner_id = $${paramIndex}`;
+        whereClause += ` AND f.owner_id = ?`;
         queryParams.push(owner_id);
-        paramIndex++;
       }
 
       if (mime_type) {
-        whereClause += ` AND f.mime_type = $${paramIndex}`;
+        whereClause += ` AND f.mime_type = ?`;
         queryParams.push(mime_type);
-        paramIndex++;
       }
 
       // Get total count
       const countResult = await query(
-        `SELECT COUNT(*) FROM files f ${whereClause}`,
+        `SELECT COUNT(*) as count FROM files f ${whereClause}`,
         queryParams
       );
       const total = parseInt(countResult.rows[0].count);
@@ -205,8 +201,8 @@ class MetadataService {
         LEFT JOIN file_metadata fm ON f.id = fm.file_id
         ${whereClause}
         ORDER BY f.created_at DESC
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
-        [...queryParams, limit, offset]
+        LIMIT ? OFFSET ?`,
+        [...queryParams, parseInt(limit), parseInt(offset)]
       );
 
       const files = result.rows.map(file => ({
@@ -309,7 +305,7 @@ class MetadataService {
     try {
       await query(
         `INSERT INTO audit_log (file_id, action, metadata) 
-         VALUES ($1, $2, $3)`,
+         VALUES (?, ?, ?)`,
         [fileId, action, JSON.stringify(metadata)]
       );
     } catch (error) {

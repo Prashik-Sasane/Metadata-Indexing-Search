@@ -40,8 +40,8 @@ app.use('/api/v1', searchRoutes);
 app.use('/api/v1', fileRoutes);
 
 // Legacy route support (backward compatibility)
-const legacyRouter = require('./routes/route');
-app.use('/api', legacyRouter);
+// const legacyRouter = require('./routes/route');
+// app.use('/api', legacyRouter);
 
 // Express 5 route matching can be stricter about wildcard patterns, so use
 // a simple middleware fallback.

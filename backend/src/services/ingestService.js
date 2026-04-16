@@ -3,7 +3,7 @@
  * Listens to S3 events (via Kafka) and updates PostgreSQL + DSA indexes
  */
 
-const { query } = require('../config/db');
+const { query } = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 class IngestService {
@@ -34,13 +34,13 @@ class IngestService {
       // 1. Insert into PostgreSQL (source of truth)
       await query(
         `INSERT INTO files (id, s3_key, bucket, name, size, mime_type, owner_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [file_id, s3_key, bucket, name, size, mime_type, owner_id]
       );
 
       await query(
         `INSERT INTO file_metadata (file_id, tags, custom) 
-         VALUES ($1, $2, $3)`,
+         VALUES (?, ?, ?)`,
         [file_id, JSON.stringify(tags), JSON.stringify(custom)]
       );
 
@@ -123,7 +123,7 @@ class IngestService {
         `SELECT f.*, fm.tags 
          FROM files f 
          LEFT JOIN file_metadata fm ON f.id = fm.file_id 
-         WHERE f.s3_key = $1`,
+         WHERE f.s3_key = ?`,
         [s3_key]
       );
 
@@ -136,7 +136,7 @@ class IngestService {
 
       // 2. Soft delete in PostgreSQL
       await query(
-        `UPDATE files SET is_deleted = TRUE, updated_at = NOW() WHERE s3_key = $1`,
+        `UPDATE files SET is_deleted = TRUE, updated_at = NOW() WHERE s3_key = ?`,
         [s3_key]
       );
 
@@ -164,12 +164,12 @@ class IngestService {
   /**
    * Log audit trail
    */
-  async logAudit(fileId, action, metadata) {
+  async logAudit(file_id, action, metadata = {}) {
     try {
       await query(
         `INSERT INTO audit_log (file_id, action, metadata) 
-         VALUES ($1, $2, $3)`,
-        [fileId, action, JSON.stringify(metadata)]
+         VALUES (?, ?, ?)`,
+        [file_id, action, JSON.stringify(metadata)]
       );
     } catch (error) {
       console.error('[IngestService] Error logging audit:', error.message);
