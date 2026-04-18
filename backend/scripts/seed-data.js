@@ -3,16 +3,17 @@
  * Run: node backend/scripts/seed-data.js
  */
 
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 
-// Database configuration
-const dbConfig = {
+// Database configuration (Supabase compatible)
+const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'metadata_search',
-};
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_DATABASE || 'postgres',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+});
 
 // Sample data pools
 const FILE_NAMES = [
@@ -134,27 +135,34 @@ function generateFile(index) {
 /**
  * Insert files in batches
  */
-async function insertBatch(connection, files) {
-  const fileValues = files.map(f => [
-    f.id, f.s3_key, f.bucket, f.name, f.size, f.mime_type, f.owner_id, f.created_at, f.updated_at, false
-  ]);
+async function insertBatch(files) {
+  const client = await pool.connect();
   
-  const metadataValues = files.map(f => [
-    f.id, JSON.stringify(f.tags), JSON.stringify(f.custom)
-  ]);
-  
-  // Insert files
-  await connection.query(
-    `INSERT INTO files (id, s3_key, bucket, name, size, mime_type, owner_id, created_at, updated_at, is_deleted)
-     VALUES ?`,
-    [fileValues]
-  );
-  
-  // Insert metadata
-  await connection.query(
-    `INSERT INTO file_metadata (file_id, tags, custom) VALUES ?`,
-    [metadataValues]
-  );
+  try {
+    await client.query('BEGIN');
+    
+    // Insert files
+    for (const f of files) {
+      await client.query(
+        `INSERT INTO files (id, s3_key, bucket, name, size, mime_type, owner_id, created_at, updated_at, is_deleted)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [f.id, f.s3_key, f.bucket, f.name, f.size, f.mime_type, f.owner_id, f.created_at, f.updated_at, false]
+      );
+      
+      // Insert metadata
+      await client.query(
+        `INSERT INTO file_metadata (file_id, tags, custom) VALUES ($1, $2, $3)`,
+        [f.id, JSON.stringify(f.tags), JSON.stringify(f.custom)]
+      );
+    }
+    
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
@@ -162,16 +170,14 @@ async function insertBatch(connection, files) {
  */
 async function seedData(numFiles = 10000) {
   console.log(`🚀 Starting data seeder: ${numFiles.toLocaleString()} files`);
-  console.log(`📊 Database: ${dbConfig.host}/${dbConfig.database}`);
-  
-  const connection = await mysql.createConnection(dbConfig);
+  console.log(`📊 Database: ${process.env.DB_HOST || 'localhost'}/${process.env.DB_DATABASE || 'postgres'}`);
   
   try {
-    const batchSize = 500; // Insert 500 files at a time
+    const batchSize = 100; // Insert 100 files at a time for PostgreSQL
     const totalBatches = Math.ceil(numFiles / batchSize);
     
     console.log(`📦 Total batches: ${totalBatches}`);
-    console.log(`⏱️  Estimated time: ~${Math.ceil(totalBatches * 0.5)} seconds\n`);
+    console.log(`⏱️  Estimated time: ~${Math.ceil(totalBatches * 0.3)} seconds\n`);
     
     for (let batch = 0; batch < totalBatches; batch++) {
       const start = batch * batchSize;
@@ -182,7 +188,7 @@ async function seedData(numFiles = 10000) {
         files.push(generateFile(i));
       }
       
-      await insertBatch(connection, files);
+      await insertBatch(files);
       
       if ((batch + 1) % 10 === 0 || batch === totalBatches - 1) {
         const progress = ((batch + 1) / totalBatches * 100).toFixed(1);
@@ -191,14 +197,14 @@ async function seedData(numFiles = 10000) {
     }
     
     // Verify
-    const [rows] = await connection.query('SELECT COUNT(*) as count FROM files');
-    console.log(`\n🎉 Seeding complete! Total files in database: ${rows[0].count.toLocaleString()}`);
+    const result = await pool.query('SELECT COUNT(*) as count FROM files');
+    console.log(`\n🎉 Seeding complete! Total files in database: ${parseInt(result.rows[0].count).toLocaleString()}`);
     
   } catch (error) {
     console.error('❌ Seeding failed:', error.message);
     throw error;
   } finally {
-    await connection.end();
+    await pool.end();
   }
 }
 

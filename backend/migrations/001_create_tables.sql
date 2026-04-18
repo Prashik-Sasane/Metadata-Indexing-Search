@@ -1,63 +1,79 @@
 -- Migration 001: Create core tables for metadata indexing system
--- This creates the foundation schema optimized for DSA-backed search
+-- PostgreSQL / Supabase compatible
 
 -- Core file metadata table
 CREATE TABLE IF NOT EXISTS files (
-    id VARCHAR(36) PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     s3_key VARCHAR(255) NOT NULL UNIQUE,
     bucket VARCHAR(255) NOT NULL,
     name VARCHAR(255) NOT NULL,
     size BIGINT NOT NULL,
     mime_type VARCHAR(255),
-    owner_id VARCHAR(36),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    owner_id UUID,   -- FIXED (UUID instead of VARCHAR)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
 );
 
--- Flexible metadata/tags as JSON
+-- Flexible metadata/tags as JSONB
 CREATE TABLE IF NOT EXISTS file_metadata (
-    file_id VARCHAR(36) PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
-    tags JSON,
-    custom JSON
+    file_id UUID PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
+    tags JSONB,
+    custom JSONB
 );
 
--- Users table (for ownership tracking)
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(36) PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email VARCHAR(255) UNIQUE NOT NULL,
     name VARCHAR(255),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Add foreign key constraint for owner_id
-ALTER TABLE files ADD CONSTRAINT fk_files_owner 
+ALTER TABLE files 
+ADD CONSTRAINT fk_files_owner 
     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
 
--- MySQL B-Tree indexes as backup (for complex joins)
-CREATE INDEX idx_files_name ON files (name(255));
-CREATE INDEX idx_files_size ON files (size);
-CREATE INDEX idx_files_created ON files (created_at);
-CREATE INDEX idx_files_s3_key ON files (s3_key(255));
-CREATE INDEX idx_files_owner ON files (owner_id);
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_files_name ON files (name);
+CREATE INDEX IF NOT EXISTS idx_files_size ON files (size);
+CREATE INDEX IF NOT EXISTS idx_files_created ON files (created_at);
+CREATE INDEX IF NOT EXISTS idx_files_s3_key ON files (s3_key);
+CREATE INDEX IF NOT EXISTS idx_files_owner ON files (owner_id);
 
--- Note: MySQL does not have GIN indexes for JSON, but we can use JSON functions in queries or create functional indexes if needed in future
+-- JSONB GIN index
+CREATE INDEX IF NOT EXISTS idx_file_metadata_tags ON file_metadata USING GIN (tags);
 
--- Audit log table for tracking changes
+-- Audit log
 CREATE TABLE IF NOT EXISTS audit_log (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    file_id VARCHAR(36) REFERENCES files(id) ON DELETE SET NULL,
+    id SERIAL PRIMARY KEY,
+    file_id UUID REFERENCES files(id) ON DELETE SET NULL,
     action VARCHAR(255) NOT NULL, -- 'CREATE', 'UPDATE', 'DELETE'
-    actor_id VARCHAR(36),
-    metadata JSON,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    actor_id UUID,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index snapshots table (for B-Tree WAL checkpoints)
+-- Index snapshots
 CREATE TABLE IF NOT EXISTS index_snapshots (
-    id VARCHAR(36) PRIMARY KEY,
-    snapshot_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    snapshot_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     s3_path VARCHAR(1024),
     checksum VARCHAR(255),
-    metadata JSON
+    metadata JSONB
 );
+
+-- updated_at trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_files_updated_at
+    BEFORE UPDATE ON files
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();

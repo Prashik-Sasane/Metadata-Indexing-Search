@@ -1,6 +1,6 @@
 /**
  * Database Migration Runner
- * Executes SQL migration files in order
+ * Executes SQL migration files in order (PostgreSQL compatible)
  */
 
 const fs = require('fs').promises;
@@ -10,7 +10,7 @@ const { pool } = require('../config/db');
 async function runMigrations() {
   console.log('[Migration] Starting migrations...');
 
-  const migrationsDir = path.join(__dirname);
+  const migrationsDir = path.join(__dirname, '..', 'migrations');
   const files = await fs.readdir(migrationsDir);
   
   // Filter and sort migration files
@@ -18,30 +18,30 @@ async function runMigrations() {
     .filter(file => file.endsWith('.sql'))
     .sort();
 
-  for (const file of migrationFiles) {
-    const filePath = path.join(migrationsDir, file);
-    const sql = await fs.readFile(filePath, 'utf-8');
+  const client = await pool.connect();
+  
+  try {
+    for (const file of migrationFiles) {
+      const filePath = path.join(migrationsDir, file);
+      const sql = await fs.readFile(filePath, 'utf-8');
 
-    console.log(`[Migration] Running ${file}...`);
-    
-    try {
-      // Split the SQL script by semicolons since mysql2 doesn't execute multiple statements well by default
-      const statements = sql
-        .split(';')
-        .map(stmt => stmt.trim())
-        .filter(stmt => stmt.length > 0);
-
-      for (const statement of statements) {
-        await pool.query(statement);
+      console.log(`[Migration] Running ${file}...`);
+      
+      try {
+        // PostgreSQL can execute multiple statements in one query
+        await client.query(sql);
+        console.log(`[Migration] ✓ ${file} completed`);
+      } catch (error) {
+        console.error(`[Migration] ✗ ${file} failed:`, error.message);
+        throw error;
       }
-      console.log(`[Migration] ✓ ${file} completed`);
-    } catch (error) {
-      console.error(`[Migration] ✗ ${file} failed:`, error.message);
-      throw error;
     }
-  }
 
-  console.log('[Migration] All migrations completed successfully');
+    console.log('[Migration] All migrations completed successfully');
+  } finally {
+    client.release();
+    await pool.end();
+  }
 }
 
 // Run if executed directly
