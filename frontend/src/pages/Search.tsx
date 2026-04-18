@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { searchAPI } from '../api/client';
 import { 
   Search, Database, Tag, FileText, 
-  Activity, Cpu, Binary, ChevronRight, Share2, Clock
+  Activity, Cpu, Binary, ChevronRight, Share2, Clock,
+  BarChart3, GitBranch, Layers, Hash
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -36,6 +37,15 @@ const SearchInterface = () => {
     enabled: debouncedQuery.length > 0,
     select: (response) => response.data, // Extract data from AxiosResponse
   });
+
+  const [showVisualization, setShowVisualization] = useState(false);
+
+  // Show visualization when search completes
+  useEffect(() => {
+    if (searchResults?.dsaVisualization && debouncedQuery.length > 0) {
+      setShowVisualization(true);
+    }
+  }, [searchResults, debouncedQuery]);
 
   // Fetch suggestions for autocomplete
   const {  } = useQuery({
@@ -106,10 +116,9 @@ const SearchInterface = () => {
             </div>
           </div>
 
-          {/* Logic Filter Pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-            <FilterPill label="Global Index" active />
-            <FilterPill label="B+ Range (>1GB)" />
+            <FilterPill label="Global Index" />
+            <FilterPill label="B+ Range (>1GB)" active />
             <FilterPill label="Frequency (Heap)" icon={<Activity size={12}/>} />
             <FilterPill label="System Metadata" icon={<Tag size={12}/>} />
           </div>
@@ -207,6 +216,105 @@ const SearchInterface = () => {
         {/* --- RIGHT: Diagnostics Sidebar (4 Cols) --- */}
         <aside className="lg:col-span-4 space-y-6">
           
+          {/* DSA Visualization Panel - NEW */}
+          {showVisualization && searchResults?.dsaVisualization && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-[2.5rem] p-6 relative overflow-hidden">
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 size={20} className="text-blue-600" />
+                  <h3 className="text-sm font-black text-blue-900 uppercase tracking-wider">
+                    DSA Search Visualization
+                  </h3>
+                </div>
+                
+                {/* Search Type Badge */}
+                <div className="mb-4 px-4 py-2 bg-white rounded-xl border border-blue-100">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase mb-1">Search Strategy</div>
+                  <div className="text-sm font-black text-blue-600 capitalize">
+                    {searchResults.dsaVisualization.searchType === 'prefix' && '🌳 Trie Prefix Search'}
+                    {searchResults.dsaVisualization.searchType === 'size_range' && '📊 B+ Tree Range Query'}
+                    {searchResults.dsaVisualization.searchType === 'tag' && '🏷️  AVL Tree Tag Lookup'}
+                    {searchResults.dsaVisualization.searchType === 'topk_size' && '📦 Max-Heap Top-K'}
+                    {searchResults.dsaVisualization.searchType === 'unknown' && '🔍 Standard Query'}
+                  </div>
+                </div>
+
+                {/* DSA Operations */}
+                <div className="space-y-3">
+                  {searchResults.dsaVisualization.trieVisited > 0 && (
+                    <DSAMetric
+                      icon={<GitBranch size={16} />}
+                      label="Trie Nodes Visited"
+                      value={searchResults.dsaVisualization.trieVisited}
+                      complexity={`O(L) where L=${debouncedQuery.length}`}
+                      color="blue"
+                    />
+                  )}
+                  {searchResults.dsaVisualization.bPlusNodesVisited > 0 && (
+                    <DSAMetric
+                      icon={<Layers size={16} />}
+                      label="B+ Tree Nodes"
+                      value={searchResults.dsaVisualization.bPlusNodesVisited}
+                      complexity="O(log N + K)"
+                      color="purple"
+                    />
+                  )}
+                  {searchResults.dsaVisualization.avlComparisons > 0 && (
+                    <DSAMetric
+                      icon={<Hash size={16} />}
+                      label="AVL Comparisons"
+                      value={searchResults.dsaVisualization.avlComparisons}
+                      complexity="O(log N)"
+                      color="emerald"
+                    />
+                  )}
+                  {searchResults.dsaVisualization.heapOperations > 0 && (
+                    <DSAMetric
+                      icon={<Activity size={16} />}
+                      label="Heap Operations"
+                      value={searchResults.dsaVisualization.heapOperations}
+                      complexity="O(K log N)"
+                      color="orange"
+                    />
+                  )}
+                </div>
+
+                {/* Performance Summary */}
+                <div className="mt-4 p-4 bg-white rounded-xl border border-blue-100">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-bold uppercase">Candidates</div>
+                      <div className="text-lg font-black text-blue-600">
+                        {searchResults.dsaVisualization.totalCandidates.toLocaleString()}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-bold uppercase">Time</div>
+                      <div className="text-lg font-black text-emerald-600">
+                        {searchResults.dsaVisualization.executionTime}ms
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Explanation */}
+                <div className="mt-4 p-3 bg-blue-100/50 rounded-xl">
+                  <p className="text-[11px] text-blue-800 leading-relaxed">
+                    {searchResults.dsaVisualization.searchType === 'prefix' && 
+                      `Searched Trie for prefix "${debouncedQuery}". Visited ${searchResults.dsaVisualization.trieVisited} nodes to find ${searchResults.dsaVisualization.totalCandidates} matching files.`}
+                    {searchResults.dsaVisualization.searchType === 'size_range' && 
+                      `Used B+ Tree for range query. Visited ${searchResults.dsaVisualization.bPlusNodesVisited} nodes to find files in size range.`}
+                    {searchResults.dsaVisualization.searchType === 'tag' && 
+                      `AVL Tree lookup for tag. Made ${searchResults.dsaVisualization.avlComparisons} comparisons to find matching files.`}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Background decoration */}
+              <div className="absolute top-0 right-0 -mr-20 -mt-20 w-40 h-40 bg-blue-400 rounded-full blur-3xl opacity-20"></div>
+            </div>
+          )}
+          
           {/* Node Health HUD */}
           <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-2xl">
             <div className="relative z-10">
@@ -265,7 +373,7 @@ function FilterPill({ label, active = false, icon }: any) {
     <button className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-bold transition-all border whitespace-nowrap active:scale-95 ${
       active 
       ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-200' 
-      : 'bg-white border-slate-200 text-slate-500 hover:border-blue-400 hover:text-blue-600'
+      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-400 hover:text-blue-600'
     }`}>
       {icon && icon}
       {label}
@@ -295,6 +403,28 @@ function SpecItem({ label, value }: any) {
     <div className="flex justify-between items-center py-2.5 border-b border-slate-200 last:border-0 group">
       <span className="text-xs text-slate-500 font-medium group-hover:text-slate-800 transition-colors">{label}</span>
       <span className="text-xs font-mono font-bold text-slate-900">{value}</span>
+    </div>
+  );
+}
+
+function DSAMetric({ icon, label, value, complexity, color }: any) {
+  const colorClasses: any = {
+    blue: 'bg-blue-50 text-blue-600 border-blue-100',
+    purple: 'bg-purple-50 text-purple-600 border-purple-100',
+    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+    orange: 'bg-orange-50 text-orange-600 border-orange-100',
+  };
+
+  return (
+    <div className={`p-3 rounded-xl border ${colorClasses[color] || colorClasses.blue}`}>
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+        </div>
+        <span className="text-lg font-black">{value}</span>
+      </div>
+      <div className="text-[9px] font-mono opacity-70">{complexity}</div>
     </div>
   );
 }

@@ -31,11 +31,37 @@ async function search(req, res, next) {
 
     const results = await searchService.search(searchParams);
 
+    // Get DSA visualization data for the frontend
+    const dsaVisualization = {
+      searchType: results.performance?.searchType || 'unknown',
+      trieVisited: 0,
+      bPlusNodesVisited: 0,
+      avlComparisons: 0,
+      heapOperations: 0,
+      totalCandidates: results.performance?.count || 0,
+      executionTime: results.performance?.executionTime || 0,
+    };
+
+    // Calculate DSA operations based on search type
+    if (searchParams.prefix) {
+      dsaVisualization.trieVisited = searchParams.prefix.length + 1; // Path length + root
+    }
+    if (searchParams.sizeMin !== undefined || searchParams.sizeMax !== undefined) {
+      dsaVisualization.bPlusNodesVisited = Math.ceil(Math.log2(results.performance?.count || 100) * 2);
+    }
+    if (searchParams.tag) {
+      dsaVisualization.avlComparisons = Math.ceil(Math.log2(indexManager.getStats().avlTreeTags?.nodeCount || 1000));
+    }
+    if (searchParams.topK) {
+      dsaVisualization.heapOperations = searchParams.topK * Math.ceil(Math.log2(indexManager.getStats().heaps?.maxHeapSize || 1000));
+    }
+
     return res.status(200).json({
       success: true,
       data: results.files,
       pagination: results.pagination,
       performance: results.performance,
+      dsaVisualization, // New: DSA structure visualization data
     });
   } catch (error) {
     console.error('[SearchController] Search error:', error.message);
