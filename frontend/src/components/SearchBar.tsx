@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { searchAPI } from '../api/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search as SearchIcon, Cpu, Zap, Hash } from 'lucide-react';
+import { Search as SearchIcon, Hash } from 'lucide-react';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;

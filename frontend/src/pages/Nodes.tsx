@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchAPI } from '../api/client';
-import { Layers, Binary, Network, Share2, MoreHorizontal, Activity } from 'lucide-react';
+import { Layers, Binary, Network, Share2, Activity } from 'lucide-react';
 
 const NodesPage = () => {
   // Fetch real DSA statistics
