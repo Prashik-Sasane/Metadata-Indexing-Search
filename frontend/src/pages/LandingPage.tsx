@@ -1,5 +1,5 @@
-import React, { useState, useEffect} from 'react';
-import { Search, Zap, Database, Shield, ArrowRight, Code, Cpu, Server, Layers3, BarChart3, Binary, GitMerge } from 'lucide-react';
+import { useState} from 'react';
+import { Search, Shield, ArrowRight, Code, Cpu, Server, Layers3, BarChart3, Binary, GitMerge } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 
@@ -17,7 +17,7 @@ const LandingPage = () => {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100">
       {/* --- Patterned Background (Subtle Grid) --- */}
-      <div className="absolute inset-0 bg-white bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem] -z-10 opacity-60"></div>
+      <div className="absolute inset-0 bg-white bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-size-[6rem_4rem] -z-10 opacity-60"></div>
 
       {/* --- Navigation --- */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-slate-100">
@@ -69,7 +69,7 @@ const LandingPage = () => {
 
           {/* Visual Graphic - Static Console */}
           <div className="lg:col-span-5 relative">
-            <div className="absolute -inset-6 bg-gradient-to-tr from-blue-100/50 to-purple-100/50 rounded-3xl blur-3xl opacity-60"></div>
+            <div className="absolute -inset-6 bg-linear-to-tr from-blue-100/50 to-purple-100/50 rounded-3xl blur-3xl opacity-60"></div>
             <div className="relative bg-slate-900 rounded-2xl shadow-2xl p-4 border border-slate-800">
               <div className="flex gap-1.5 mb-4 px-2">
                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -111,10 +111,10 @@ const LandingPage = () => {
               />
             </div>
           </div>
-          <div className="md:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 h-[280px] overflow-hidden">
+          <div className="md:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 h-70 overflow-hidden">
             <div className="font-mono text-xs text-slate-400 mb-3 uppercase tracking-wider border-b border-slate-100 pb-2">Matching Trie Leaf Nodes:</div>
             {trieMatches.length > 0 ? (
-              <div className="space-y-2 overflow-y-auto h-[220px]">
+              <div className="space-y-2 overflow-y-auto h-55">
                 {trieMatches.map((file, i) => (
                   <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-lg hover:bg-blue-50 transition-colors">
                     <span className="font-medium text-slate-900">{file.name}</span>

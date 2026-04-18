@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect} from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchAPI } from '../api/client';
 import { 
-  Search, Filter, Database, Tag, Zap, FileText, 
-  Terminal, Activity, Cpu, Binary, ChevronRight, Share2, Download, Clock
+  Search, Database, Tag, FileText, 
+  Activity, Cpu, Binary, ChevronRight, Share2, Clock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -38,7 +38,7 @@ const SearchInterface = () => {
   });
 
   // Fetch suggestions for autocomplete
-  const { data: suggestionsData } = useQuery({
+  const {  } = useQuery({
     queryKey: ['suggestions', query],
     queryFn: () => searchAPI.getSuggestions(query, 5),
     enabled: query.length > 2 && isFocused,
@@ -47,7 +47,7 @@ const SearchInterface = () => {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100">
       {/* --- Subtle Grid Background --- */}
-      <div className="fixed inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-[size:4rem_4rem] -z-10 opacity-70"></div>
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-size-[4rem_4rem] -z-10 opacity-70"></div>
 
       {/* --- Dashboard Header --- */}
       <header className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
@@ -76,7 +76,7 @@ const SearchInterface = () => {
         <div className="lg:col-span-8 space-y-8">
           
           {/* Main Search Bar */}
-          <div className={`group relative transition-all duration-500 ${isFocused ? 'translate-y-[-2px]' : ''}`}>
+          <div className={`group relative transition-all duration-500 ${isFocused ? 'translate-y-0.5' : ''}`}>
             <div className={`flex items-center bg-white border-2 rounded-2xl p-2 transition-all shadow-sm ${isFocused ? 'border-blue-500 shadow-2xl shadow-blue-100/50' : 'border-slate-200'}`}>
               <div className="pl-4 pr-2 text-slate-400 group-hover:text-blue-500 transition-colors">
                 <Search size={22} />
@@ -244,7 +244,7 @@ const SearchInterface = () => {
           </div>
 
           {/* CTA/Docs Box */}
-          <div className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl group cursor-pointer hover:shadow-lg transition-all">
+          <div className="p-6 bg-linear-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl group cursor-pointer hover:shadow-lg transition-all">
             <h4 className="font-bold text-blue-900 text-sm mb-2 flex items-center gap-2">
               Advanced DSA Docs <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform"/>
             </h4>

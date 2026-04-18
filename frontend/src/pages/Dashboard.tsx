@@ -42,10 +42,10 @@ const AnimatedTerminal = ({ statsData }: { statsData: any }) => {
   return (
     <div className="relative">
       {/* Background Glow */}
-      <div className="absolute -inset-6 bg-gradient-to-tr from-blue-100/50 to-purple-100/50 rounded-3xl blur-3xl opacity-60"></div>
+      <div className="absolute -inset-6 bg-linear-to-tr from-blue-100/50 to-purple-100/50 rounded-3xl blur-3xl opacity-60"></div>
       
       {/* Terminal Window */}
-      <div className="relative bg-slate-900 rounded-2xl shadow-2xl p-4 border border-slate-800 min-h-[380px]">
+      <div className="relative bg-slate-900 rounded-2xl shadow-2xl p-4 border border-slate-800 min-h-95">
         {/* Window Controls */}
         <div className="flex gap-1.5 mb-4 px-2">
           <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -128,7 +128,7 @@ const UnifiedDashboard = () => {
     select: (response) => response.data,
   });
 
-  const { data: filesData } = useQuery({
+  const {} = useQuery({
     queryKey: ['files-list'],
     queryFn: () => filesAPI.list({ limit: 1 }),
     select: (response) => response.data,
@@ -143,7 +143,7 @@ const UnifiedDashboard = () => {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100">
       {/* Shared Subtle Grid Background */}
-      <div className="fixed inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-[size:4rem_4rem] -z-10 opacity-70"></div>
+      <div className="fixed inset-0 bg-[linear-gradient(to_right,#f8fafc_1px,transparent_1px),linear-gradient(to_bottom,#f8fafc_1px,transparent_1px)] bg-size-[4rem_4rem] -z-10 opacity-70"></div>
 
       {/* Navigation */}
       <nav className="border-b border-slate-100 bg-white/80 backdrop-blur-md sticky top-0 z-50">
@@ -266,7 +266,7 @@ const UnifiedDashboard = () => {
 // --- Helper Components ---
 
 const MetricCard = ({ title, value, sub, icon }: { title: string; value: string; sub: string; icon: React.ReactNode }) => (
-  <div className="bg-white border border-slate-100 p-6 rounded-[2rem] shadow-sm hover:border-blue-200 transition-all group">
+  <div className="bg-white border border-slate-100 p-6 rounded-4xl shadow-sm hover:border-blue-200 transition-all group">
     <div className="flex justify-between items-start mb-4">
       <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">{icon}</div>
       <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic">Live</span>
@@ -277,7 +277,7 @@ const MetricCard = ({ title, value, sub, icon }: { title: string; value: string;
 );
 
 const StatusCard = ({ title, detail, icon }: { title: string; detail: string; icon: React.ReactNode }) => (
-  <div className="bg-slate-50 border border-slate-100 p-6 rounded-[2rem] flex items-center justify-between group cursor-pointer hover:bg-white hover:shadow-xl hover:shadow-blue-50/50 transition-all">
+  <div className="bg-slate-50 border border-slate-100 p-6 rounded-4xl flex items-center justify-between group cursor-pointer hover:bg-white hover:shadow-xl hover:shadow-blue-50/50 transition-all">
     <div className="flex items-center gap-4">
       <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm">{icon}</div>
       <div>

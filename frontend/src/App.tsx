@@ -1,9 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
-import Header from './components/Header.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import Search from './pages/Search.tsx';
 import FileDetail from './pages/FileDetail.tsx';
-import { div } from 'framer-motion/m';
 import LandingPage from './pages/LandingPage.tsx';
 import NodePage from './pages/Nodes.tsx';
 
