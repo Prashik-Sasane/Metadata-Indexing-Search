@@ -10,6 +10,11 @@ class MetadataService {
   constructor(indexManager) {
     this.indexManager = indexManager;
     
+    // Validate AWS configuration
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      console.warn('[MetadataService] AWS credentials not configured');
+    }
+    
     // Initialize S3 client
     this.s3Client = new S3Client({
       region: process.env.AWS_REGION || 'us-east-1',
@@ -18,6 +23,8 @@ class MetadataService {
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
       },
     });
+    
+    this.bucketName = process.env.S3_BUCKET || 'metadata-search-files';
   }
 
   /**
@@ -242,8 +249,12 @@ class MetadataService {
    */
   async getPresignedDownloadUrl(s3Key, expiresIn = 3600) {
     try {
+      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+        throw new Error('AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env');
+      }
+
       const command = new GetObjectCommand({
-        Bucket: process.env.S3_BUCKET || 'metadata-search-files',
+        Bucket: this.bucketName,
         Key: s3Key,
       });
 
@@ -251,7 +262,7 @@ class MetadataService {
       return url;
     } catch (error) {
       console.error('[MetadataService] Get presigned URL error:', error.message);
-      throw error;
+      throw new Error(`Failed to generate download URL: ${error.message}`);
     }
   }
 
@@ -264,10 +275,14 @@ class MetadataService {
    */
   async getPresignedUploadUrl(fileName, mimeType, expiresIn = 3600) {
     try {
+      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+        throw new Error('AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env');
+      }
+
       const s3Key = `uploads/${Date.now()}-${fileName}`;
       
       const command = new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET || 'metadata-search-files',
+        Bucket: this.bucketName,
         Key: s3Key,
         ContentType: mimeType,
       });
@@ -281,7 +296,7 @@ class MetadataService {
       };
     } catch (error) {
       console.error('[MetadataService] Get presigned upload URL error:', error.message);
-      throw error;
+      throw new Error(`Failed to generate upload URL: ${error.message}`);
     }
   }
 

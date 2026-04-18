@@ -103,6 +103,9 @@ class SearchService {
     }
 
     try {
+      // MySQL doesn't support array parameters directly, need to build placeholders
+      const placeholders = fileIDs.map(() => '?').join(',');
+      
       // Fetch files with metadata in a single query
       const result = await query(
         `SELECT 
@@ -119,9 +122,9 @@ class SearchService {
           fm.custom
         FROM files f
         LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        WHERE f.id IN (?) AND f.is_deleted = FALSE
+        WHERE f.id IN (${placeholders}) AND f.is_deleted = FALSE
         ORDER BY f.created_at DESC`,
-        [fileIDs]
+        fileIDs
       );
 
       // Transform rows to proper format

@@ -3,10 +3,10 @@
  */
 
 const { SearchService } = require('../services/searchService');
-const { IndexManager } = require('../dsa/indexManager');
+const { getIndexManager } = require('../services/indexManagerSingleton');
 
-// Singleton instances
-const indexManager = new IndexManager();
+// Get shared IndexManager instance
+const indexManager = getIndexManager();
 const searchService = new SearchService(indexManager);
 
 /**

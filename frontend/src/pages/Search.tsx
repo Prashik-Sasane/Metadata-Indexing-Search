@@ -1,20 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { searchAPI } from '../api/client';
 import { 
   Search, Filter, Database, Tag, Zap, FileText, 
-  Terminal, Activity, Cpu, Binary, ChevronRight, Share2
+  Terminal, Activity, Cpu, Binary, ChevronRight, Share2, Download, Clock
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const SearchInterface = () => {
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
+  const [searchParams, setSearchParams] = useState({
+    prefix: '',
+    tag: '',
+    sizeMin: undefined,
+    sizeMax: undefined,
+    topK: undefined,
+    sort: 'recent',
+  });
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  // Mock results showcasing indexing logic and DSA efficiency
-  const mockResults = [
-    { name: 'prod_deploy_v2.yaml', size: '12 KB', engine: 'Trie', latency: '0.4ms', complexity: 'O(L)' },
-    { name: 'archive_logs_2024.zip', size: '1.4 GB', engine: 'B+ Tree', latency: '0.9ms', complexity: 'O(Log N)' },
-    { name: 'schema_final_draft.pdf', size: '4.2 MB', engine: 'Trie', latency: '0.6ms', complexity: 'O(L)' },
-    { name: 'user_backups_shard_1.tar', size: '850 MB', engine: 'B+ Tree', latency: '0.8ms', complexity: 'O(Log N)' }
-  ];
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+      setSearchParams(prev => ({ ...prev, prefix: query }));
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Fetch search results
+  const { data: searchResults, isLoading: isSearching } = useQuery({
+    queryKey: ['search', debouncedQuery, searchParams],
+    queryFn: () => searchAPI.search(searchParams),
+    enabled: debouncedQuery.length > 0,
+    select: (response) => response.data, // Extract data from AxiosResponse
+  });
+
+  // Fetch suggestions for autocomplete
+  const { data: suggestionsData } = useQuery({
+    queryKey: ['suggestions', query],
+    queryFn: () => searchAPI.getSuggestions(query, 5),
+    enabled: query.length > 2 && isFocused,
+  });
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100">
@@ -89,33 +117,90 @@ const SearchInterface = () => {
           {/* Results List */}
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Query Response Nodes</h2>
-              <span className="text-[11px] font-medium text-slate-400 font-mono">Found in 1.2ms</span>
+              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                {debouncedQuery ? 'Query Response Nodes' : 'Recent Files'}
+              </h2>
+              {searchResults?.performance && (
+                <span className="text-[11px] font-medium text-slate-400 font-mono">
+                  Found in {searchResults.performance.executionTime}
+                </span>
+              )}
             </div>
 
-            <div className="grid gap-3">
-              {mockResults.map((file, i) => (
-                <div key={i} className="group bg-white border border-slate-100 p-5 rounded-2xl hover:border-blue-200 hover:shadow-xl hover:shadow-blue-50/50 transition-all cursor-pointer flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white group-hover:rotate-6 transition-all duration-300">
-                      <FileText size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{file.name}</h3>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-[11px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded uppercase">{file.size}</span>
-                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                        <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">Engine: {file.engine}</span>
+            {isSearching ? (
+              <div className="grid gap-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="bg-white border border-slate-100 p-5 rounded-2xl animate-pulse">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-slate-100 rounded-xl"></div>
+                      <div className="flex-1">
+                        <div className="h-4 bg-slate-100 rounded w-48 mb-2"></div>
+                        <div className="h-3 bg-slate-100 rounded w-24"></div>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs font-bold text-emerald-600 font-mono mb-1">{file.latency}</div>
-                    <div className="text-[10px] text-slate-300 font-mono font-semibold">{file.complexity}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : searchResults?.data && searchResults.data.length > 0 ? (
+              <div className="grid gap-3">
+                {searchResults.data.map((file: any) => (
+                  <Link
+                    key={file.id}
+                    to={`/files/${file.id}`}
+                    className="group bg-white border border-slate-100 p-5 rounded-2xl hover:border-blue-200 hover:shadow-xl hover:shadow-blue-50/50 transition-all cursor-pointer flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white group-hover:rotate-6 transition-all duration-300">
+                        <FileText size={24} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                          {file.name}
+                        </h3>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <span className="text-[11px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded uppercase">
+                            {file.sizeFormatted}
+                          </span>
+                          <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                          <span className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">
+                            {file.mime_type || 'Unknown'}
+                          </span>
+                          {file.tags && Object.keys(file.tags).length > 0 && (
+                            <>
+                              <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                              <span className="text-[10px] font-black text-emerald-600 uppercase tracking-tighter">
+                                {Object.keys(file.tags).slice(0, 2).join(', ')}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-emerald-600 font-mono mb-1">
+                        {file.bucket}
+                      </div>
+                      <div className="text-[10px] text-slate-300 font-mono font-semibold flex items-center gap-1">
+                        <Clock size={10} />
+                        {new Date(file.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : debouncedQuery.length > 0 ? (
+              <div className="text-center py-20">
+                <Search className="mx-auto text-slate-300 mb-4" size={48} />
+                <p className="text-slate-500 font-medium">No files found for "{debouncedQuery}"</p>
+                <p className="text-slate-400 text-sm mt-2">Try a different search term</p>
+              </div>
+            ) : (
+              <div className="text-center py-20">
+                <Database className="mx-auto text-slate-300 mb-4" size={48} />
+                <p className="text-slate-500 font-medium">Start typing to search files</p>
+                <p className="text-slate-400 text-sm mt-2">Search by filename, prefix, or metadata</p>
+              </div>
+            )}
           </div>
         </div>
 

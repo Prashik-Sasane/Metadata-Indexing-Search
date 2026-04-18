@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { searchAPI, filesAPI } from '../api/client';
 import { 
   Binary, Activity, Database, Cpu, Zap, Layers, 
   HardDrive, Bell, ChevronRight, ArrowUpRight 
@@ -72,6 +74,26 @@ const AnimatedTerminal = () => {
 
 // --- Main Unified Dashboard ---
 const UnifiedDashboard = () => {
+  // Fetch real stats from API
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['search-stats'],
+    queryFn: () => searchAPI.getStats(),
+    refetchInterval: 10000, // Refresh every 10 seconds
+    select: (response) => response.data,
+  });
+
+  const { data: filesData } = useQuery({
+    queryKey: ['files-list'],
+    queryFn: () => filesAPI.list({ limit: 1 }),
+    select: (response) => response.data,
+  });
+
+  // Extract stats with fallbacks
+  const dsaStats = statsData?.dsaIndexes || {};
+  const dbStats = statsData?.database || {};
+  const totalFiles = dbStats.totalFiles || 0;
+  const totalSize = dbStats.totalSizeFormatted || '0 Bytes';
+
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans selection:bg-blue-100">
       {/* Shared Subtle Grid Background */}
@@ -102,10 +124,30 @@ const UnifiedDashboard = () => {
         
         {/* Metric Cards Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard title="Indexed Nodes" value="4.2M" sub="O(1) Access" icon={<Database className="text-blue-600"/>} />
-          <MetricCard title="Mean Latency" value="0.82ms" sub="-12% vs last hour" icon={<Zap className="text-amber-500"/>} />
-          <MetricCard title="Tree Depth" value="4 Lvl" sub="B+ Tree Balanced" icon={<Layers className="text-purple-600"/>} />
-          <MetricCard title="Engine Load" value="24%" sub="4-Core Cluster" icon={<Cpu className="text-emerald-500"/>} />
+          <MetricCard 
+            title="Indexed Files" 
+            value={statsLoading ? '...' : totalFiles.toLocaleString()} 
+            sub="O(1) Access" 
+            icon={<Database className="text-blue-600"/>} 
+          />
+          <MetricCard 
+            title="Total Size" 
+            value={statsLoading ? '...' : totalSize} 
+            sub="Across all buckets" 
+            icon={<Zap className="text-amber-500"/>} 
+          />
+          <MetricCard 
+            title="Trie Nodes" 
+            value={statsLoading ? '...' : (dsaStats.trie?.nodeCount || 0).toLocaleString()} 
+            sub="Prefix Index" 
+            icon={<Layers className="text-purple-600"/>} 
+          />
+          <MetricCard 
+            title="Search Operations" 
+            value={statsLoading ? '...' : (dsaStats.operations?.totalSearches || 0).toLocaleString()} 
+            sub="Total searches" 
+            icon={<Cpu className="text-emerald-500"/>} 
+          />
         </div>
 
         <div className="grid lg:grid-cols-12 gap-10">
@@ -131,9 +173,19 @@ const UnifiedDashboard = () => {
                   Structure Integrity
                 </h3>
                 <div className="space-y-7">
-                  <StatProgress label="Trie Compaction" value="92%" />
-                  <StatProgress label="B+ Tree Fill" value="78%" />
-                  <StatProgress label="Heap Balancing" value="100%" color="bg-emerald-500" />
+                  <StatProgress 
+                    label="Trie Compaction" 
+                    value={statsLoading ? '0%' : `${Math.min(100, Math.round((dsaStats.trie?.nodeCount || 0) / 100))}%`} 
+                  />
+                  <StatProgress 
+                    label="B+ Tree Fill" 
+                    value={statsLoading ? '0%' : `${Math.min(100, Math.round((dsaStats.bPlusTreeSize?.nodeCount || 0) / 50))}%`} 
+                  />
+                  <StatProgress 
+                    label="Heap Balancing" 
+                    value="100%" 
+                    color="bg-emerald-500" 
+                  />
                 </div>
               </div>
               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-56 h-56 bg-blue-600 rounded-full blur-[100px] opacity-20"></div>

@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const createError = require('http-errors');
 
 const { connectDB } = require('./config/db');
+const { initIndexManager } = require('./src/services/indexManagerSingleton');
 const searchRoutes = require('./src/routes/searchRoutes');
 const fileRoutes = require('./src/routes/fileRoutes');
 
@@ -70,10 +71,30 @@ app.use((err, req, res, next) => {
 const port = Number(process.env.PORT || 3000);
 
 async function start() {
-  await connectDB();
-  app.listen(port, () => {
-    console.log(`[api] Listening on port ${port}`);
-  });
+  try {
+    // Initialize database connection
+    await connectDB();
+    
+    // Initialize DSA IndexManager
+    await initIndexManager();
+    
+    // Validate AWS S3 configuration
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+      console.warn('[WARNING] AWS credentials not configured. S3 operations will fail.');
+    }
+    if (!process.env.S3_BUCKET) {
+      console.warn('[WARNING] S3_BUCKET not configured. Using default: metadata-search-files');
+    }
+    
+    console.log('[api] Starting server...');
+    app.listen(port, () => {
+      console.log(`[api] Listening on port ${port}`);
+      console.log(`[api] Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('[api] Failed to start:', error);
+    process.exit(1);
+  }
 }
 
 // Start only when executed directly (not when required by tests/tools).
