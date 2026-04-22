@@ -21,7 +21,6 @@ export default function Upload() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStep, setUploadStep] = useState<string>('Ready for ingestion');
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
 
   // Validation Logic
   const isJsonValid = useMemo(() => {
@@ -111,9 +110,9 @@ export default function Upload() {
             <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
               <div className="p-8 space-y-8">
                 <div
-                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); setFile(e.dataTransfer.files[0]); }}
+                  onDragOver={(e) => { e.preventDefault(); }}
+                  onDragLeave={() => {}}
+                  onDrop={(e) => { e.preventDefault(); setFile(e.dataTransfer.files[0]); }}
                   className={`relative border-2 border-dashed rounded-2xl p-10 transition-all group flex flex-col items-center justify-center text-center
                     ${file ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-200 hover:border-blue-400 hover:bg-slate-50/50'}`}
                 >
