@@ -4,6 +4,7 @@ import Search from './pages/Search.tsx';
 import FileDetail from './pages/FileDetail.tsx';
 import LandingPage from './pages/LandingPage.tsx';
 import NodePage from './pages/Nodes.tsx';
+import Upload from './pages/Upload.tsx';
 
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
           <Route path="/" element={<LandingPage />} /> 
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/upload" element={<Upload />} />
           <Route path="/files/:id" element={<FileDetail />} />
           <Route path="/nodes" element={<NodePage />} />
         </Routes>

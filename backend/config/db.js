@@ -1,36 +1,54 @@
+const dns = require('dns');
+
+dns.setDefaultResultOrder('ipv4first');
+
 const { Pool } = require('pg');
 
-// PostgreSQL connection pool (Supabase compatible)
+// Use DATABASE_URL from environment (docker-compose / .env)
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("[db] ERROR: DATABASE_URL is missing!");
+  process.exit(1);
+}
+
+// Create PostgreSQL connection pool
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_DATABASE || 'postgres',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  connectionString,
+  ssl: { rejectUnauthorized: false },  // Required for Supabase
+  // family: 4  // Optional extra force IPv4 (only if needed)
 });
 
+// Connect DB function
 async function connectDB() {
   try {
     const client = await pool.connect();
-    console.log('[db] Connected to PostgreSQL');
+    console.log("[db] Connected to PostgreSQL");
     client.release();
     return pool;
   } catch (error) {
-    console.error('[db] PostgreSQL connection error:', error.message);
+    console.error("[db] PostgreSQL connection error:", error.message);
     throw error;
   }
 }
 
-// Helper function to execute queries
+// Query helper
 async function query(text, params) {
+  // This codebase uses `?` placeholders in SQL, but node-postgres (`pg`)
+  // expects `$1, $2, ...`. Convert them here to keep the rest of the code clean.
+  let paramIndex = 0;
+  const transformedText = text.replace(/\?/g, () => `$${++paramIndex}`);
+
   const start = Date.now();
-  const result = await pool.query(text, params);
+  const result = await pool.query(transformedText, params);
   const duration = Date.now() - start;
-  console.log('[db] Executed query', { text, duration, rows: result.rowCount });
+
+  console.log(`[db] Query executed in ${duration} ms`);
   return result;
 }
 
-module.exports = { connectDB, pool, query };
+module.exports = {
+  connectDB,
+  pool,
+  query
+};

@@ -309,6 +309,7 @@ DB_HOST=your-rds-endpoint.rds.amazonaws.com
 DB_PORT=3306
 DB_USER=admin
 DB_PASSWORD=secure_password
+DB_URL=postgresql://admin:
 DB_NAME=metadata_search
 DB_POOL_SIZE=20
 

@@ -3,7 +3,7 @@
  * Routes queries to appropriate DSA structures and hydrates results
  */
 
-const { query } = require('../../config/db');
+const { query } = require('../../config/db.js');
 
 class SearchService {
   constructor(indexManager) {
@@ -98,55 +98,51 @@ class SearchService {
    * @returns {Object[]} Array of file objects
    */
   async hydrateFiles(fileIDs) {
-    if (fileIDs.length === 0) {
-      return [];
-    }
-
-    try {
-      // MySQL doesn't support array parameters directly, need to build placeholders
-      const placeholders = fileIDs.map(() => '?').join(',');
-      
-      // Fetch files with metadata in a single query
-      const result = await query(
-        `SELECT 
-          f.id,
-          f.s3_key,
-          f.bucket,
-          f.name,
-          f.size,
-          f.mime_type,
-          f.owner_id,
-          f.created_at,
-          f.updated_at,
-          fm.tags,
-          fm.custom
-        FROM files f
-        LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        WHERE f.id IN (${placeholders}) AND f.is_deleted = FALSE
-        ORDER BY f.created_at DESC`,
-        fileIDs
-      );
-
-      // Transform rows to proper format
-      return result.rows.map(row => ({
-        id: row.id,
-        s3_key: row.s3_key,
-        bucket: row.bucket,
-        name: row.name,
-        size: row.size,
-        mime_type: row.mime_type,
-        owner_id: row.owner_id,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-        tags: row.tags || {},
-        custom: row.custom || {},
-        sizeFormatted: this.formatFileSize(row.size),
-      }));
-    } catch (error) {
-      console.error('[SearchService] Hydrate files error:', error.message);
-      return [];
-    }
+  if (fileIDs.length === 0) {
+    return [];
   }
+
+  try {
+    // PostgreSQL supports arrays directly — no placeholders needed
+    const result = await query(
+      `SELECT 
+        f.id,
+        f.s3_key,
+        f.bucket,
+        f.name,
+        f.size,
+        f.mime_type,
+        f.owner_id,
+        f.created_at,
+        f.updated_at,
+        fm.tags,
+        fm.custom
+       FROM files f
+       LEFT JOIN file_metadata fm ON f.id = fm.file_id
+       WHERE f.id = ANY($1) AND f.is_deleted = FALSE
+       ORDER BY f.created_at DESC`,
+      [fileIDs]  // <-- Passed as array
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      s3_key: row.s3_key,
+      bucket: row.bucket,
+      name: row.name,
+      size: row.size,
+      mime_type: row.mime_type,
+      owner_id: row.owner_id,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      tags: row.tags || {},
+      custom: row.custom || {},
+      sizeFormatted: this.formatFileSize(row.size),
+    }));
+  } catch (error) {
+    console.error('[SearchService] Hydrate files error:', error.message);
+    return [];
+  }
+}
 
   /**
    * Paginate results

@@ -35,15 +35,12 @@ class MetadataService {
   async getFile(fileId) {
     try {
       const result = await query(
-        `SELECT 
-          f.*,
-          fm.tags,
-          fm.custom
-        FROM files f
-        LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        WHERE f.id = ? AND f.is_deleted = FALSE`,
-        [fileId]
-      );
+      `SELECT f.*, fm.tags, fm.custom
+      FROM files f
+      LEFT JOIN file_metadata fm ON f.id = fm.file_id
+      WHERE f.id = $1 AND f.is_deleted = FALSE`,
+      [fileId]
+    );
 
       if (result.rows.length === 0) {
         return null;
@@ -87,8 +84,8 @@ class MetadataService {
       // 2. Update tags in PostgreSQL
       await query(
         `UPDATE file_metadata 
-         SET tags = ?, custom = COALESCE(custom, '{}')
-         WHERE file_id = ?`,
+          SET tags = $1, custom = COALESCE(custom, '{}')
+          WHERE file_id = $2`,
         [JSON.stringify(newTags), fileId]
       );
 
@@ -136,7 +133,7 @@ class MetadataService {
       await query(
         `UPDATE files 
          SET is_deleted = TRUE, updated_at = NOW() 
-         WHERE id = ?`,
+         WHERE id = $1`,
         [fileId]
       );
 
@@ -167,104 +164,76 @@ class MetadataService {
    * @returns {Object} Paginated file list
    */
   async listFiles(params = {}) {
-    const { page = 1, limit = 50, owner_id, mime_type } = params;
-    const offset = (page - 1) * limit;
+  const { page = 1, limit = 50, owner_id, mime_type } = params;
 
-    try {
-      let whereClause = 'WHERE f.is_deleted = FALSE';
-      const queryParams = [];
+  const limitValue = parseInt(limit);
+  const offsetValue = (parseInt(page) - 1) * limitValue;
 
-      if (owner_id) {
-        whereClause += ` AND f.owner_id = ?`;
-        queryParams.push(owner_id);
-      }
+  try {
+    let whereClause = 'WHERE f.is_deleted = FALSE';
+    const queryParams = [];
 
-      if (mime_type) {
-        whereClause += ` AND f.mime_type = ?`;
-        queryParams.push(mime_type);
-      }
-
-      // Get total count
-      const countResult = await query(
-        `SELECT COUNT(*) as count FROM files f ${whereClause}`,
-        queryParams
-      );
-      const total = parseInt(countResult.rows[0].count);
-
-      // Get paginated results
-      const result = await query(
-        `SELECT 
-          f.id,
-          f.s3_key,
-          f.bucket,
-          f.name,
-          f.size,
-          f.mime_type,
-          f.owner_id,
-          f.created_at,
-          f.updated_at,
-          fm.tags
-        FROM files f
-        LEFT JOIN file_metadata fm ON f.id = fm.file_id
-        ${whereClause}
-        ORDER BY f.created_at DESC
-        LIMIT ? OFFSET ?`,
-        [...queryParams, parseInt(limit), parseInt(offset)]
-      );
-
-      const files = result.rows.map(file => ({
-        id: file.id,
-        s3_key: file.s3_key,
-        bucket: file.bucket,
-        name: file.name,
-        size: file.size,
-        mime_type: file.mime_type,
-        owner_id: file.owner_id,
-        created_at: file.created_at,
-        updated_at: file.updated_at,
-        tags: file.tags || {},
-        sizeFormatted: this.formatFileSize(file.size),
-      }));
-
-      return {
-        files,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      };
-    } catch (error) {
-      console.error('[MetadataService] List files error:', error.message);
-      throw error;
+    // Dynamic WHERE conditions
+    if (owner_id) {
+      queryParams.push(owner_id);
+      whereClause += ` AND f.owner_id = $${queryParams.length}`;
     }
-  }
 
-  /**
-   * Generate presigned URL for file download
-   * @param {string} s3Key - S3 object key
-   * @param {number} expiresIn - URL expiration in seconds
-   * @returns {string} Presigned URL
-   */
-  async getPresignedDownloadUrl(s3Key, expiresIn = 3600) {
-    try {
-      if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-        throw new Error('AWS credentials not configured. Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env');
-      }
-
-      const command = new GetObjectCommand({
-        Bucket: this.bucketName,
-        Key: s3Key,
-      });
-
-      const url = await getSignedUrl(this.s3Client, command, { expiresIn });
-      return url;
-    } catch (error) {
-      console.error('[MetadataService] Get presigned URL error:', error.message);
-      throw new Error(`Failed to generate download URL: ${error.message}`);
+    if (mime_type) {
+      queryParams.push(mime_type);
+      whereClause += ` AND f.mime_type = $${queryParams.length}`;
     }
+
+    // Count query
+    const countSql = `
+      SELECT COUNT(*) AS count
+      FROM files f
+      ${whereClause}
+    `;
+    const countResult = await query(countSql, queryParams);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Add LIMIT and OFFSET as parameters
+    queryParams.push(limitValue);  // now becomes $N+1
+    queryParams.push(offsetValue); // becomes $N+2
+
+    const limitIndex = queryParams.length - 1;  // $N+1
+    const offsetIndex = queryParams.length;    // $N+2
+
+    const sql = `
+      SELECT 
+        f.id, f.s3_key, f.bucket, f.name, f.size,
+        f.mime_type, f.owner_id, f.created_at, f.updated_at,
+        fm.tags
+      FROM files f
+      LEFT JOIN file_metadata fm ON f.id = fm.file_id
+      ${whereClause}
+      ORDER BY f.created_at DESC
+      LIMIT $${limitIndex} OFFSET $${offsetIndex}
+    `;
+
+    const result = await query(sql, queryParams);
+
+    const files = result.rows.map(file => ({
+      ...file,
+      tags: file.tags || {},
+      sizeFormatted: this.formatFileSize(file.size),
+    }));
+
+    return {
+      files,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / limitValue),
+      },
+    };
+  } catch (error) {
+    console.error('[MetadataService] List files error:', error.message);
+    throw error;
   }
+}
 
   /**
    * Generate presigned URL for file upload
@@ -291,6 +260,7 @@ class MetadataService {
       
       return {
         uploadUrl: url,
+        bucket: this.bucketName,
         s3Key,
         expiresIn,
       };

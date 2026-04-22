@@ -34,13 +34,13 @@ class IngestService {
       // 1. Insert into PostgreSQL (source of truth)
       await query(
         `INSERT INTO files (id, s3_key, bucket, name, size, mime_type, owner_id) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [file_id, s3_key, bucket, name, size, mime_type, owner_id]
       );
 
       await query(
         `INSERT INTO file_metadata (file_id, tags, custom) 
-         VALUES (?, ?, ?)`,
+         VALUES ($1, $2, $3)`,
         [file_id, JSON.stringify(tags), JSON.stringify(custom)]
       );
 
@@ -123,7 +123,7 @@ class IngestService {
         `SELECT f.*, fm.tags 
          FROM files f 
          LEFT JOIN file_metadata fm ON f.id = fm.file_id 
-         WHERE f.s3_key = ?`,
+         WHERE f.s3_key = $1`,
         [s3_key]
       );
 
@@ -136,7 +136,7 @@ class IngestService {
 
       // 2. Soft delete in PostgreSQL
       await query(
-        `UPDATE files SET is_deleted = TRUE, updated_at = NOW() WHERE s3_key = ?`,
+        `UPDATE files SET is_deleted = TRUE, updated_at = NOW() WHERE s3_key = $1`,
         [s3_key]
       );
 
@@ -168,7 +168,7 @@ class IngestService {
     try {
       await query(
         `INSERT INTO audit_log (file_id, action, metadata) 
-         VALUES (?, ?, ?)`,
+         VALUES ($1, $2, $3)`,
         [file_id, action, JSON.stringify(metadata)]
       );
     } catch (error) {

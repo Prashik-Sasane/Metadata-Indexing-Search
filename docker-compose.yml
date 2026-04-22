@@ -1,26 +1,4 @@
-version: '3.8'
-
 services:
-  # PostgreSQL Database (Supabase compatible)
-  postgres:
-    image: postgres:15
-    container_name: metadata-search-postgres
-    environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgresdata:/var/lib/postgresql/data
-      - ./backend/migrations:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - metadata-search-network
 
   # Redis Cache
   redis:
@@ -77,29 +55,26 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_DATABASE=postgres
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
+      - DATABASE_URL=${DATABASE_URL}
+      - NODE_OPTIONS=--dns-result-order=ipv4first
       - REDIS_URL=redis://redis:6379
       - KAFKA_BROKER=kafka:29092
       - AWS_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID={AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY={AWS_SECRET_ACCESS_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - S3_BUCKET=metadata-search-files
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       kafka:
         condition: service_started
     volumes:
       - ./backend:/app
-      - /app/node_modules
     networks:
       - metadata-search-network
+    dns:
+      - 8.8.8.8      
+      - 1.1.1.1
 
 volumes:
   postgresdata:
