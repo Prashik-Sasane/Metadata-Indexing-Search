@@ -3,7 +3,7 @@ import axios from 'axios';
 import { filesAPI } from '../api/client';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Binary, Upload as UploadIcon, FileText,
+  Binary, Upload as UploadIcon,
   Tag, Code, ChevronLeft, ArrowUpRight,
   Cpu, Shield, Check, Info, Loader2, User
 } from 'lucide-react';
