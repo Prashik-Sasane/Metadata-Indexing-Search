@@ -31,9 +31,24 @@ apiClient.interceptors.response.use(
 // SEARCH API
 // ----------------------------
 export const searchAPI = {
-  search: (query: string) =>
-    apiClient.get('/search', { params: { q: query } }),
+  // Main search endpoint (supports structured params)
+  search: (params: {
+    prefix?: string;
+    tag?: string;
+    sizeMin?: number;
+    sizeMax?: number;
+    topK?: number;
+    sort?: string;
+  }) =>
+    apiClient.get('/search', { params }),
 
+  // Autocomplete suggestions
+  getSuggestions: (prefix: string, limit: number = 10) =>
+    apiClient.get('/search/suggestions', {
+      params: { prefix, limit }
+    }),
+
+  // Stats
   getStats: () =>
     apiClient.get('/search/stats'),
 };
