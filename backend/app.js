@@ -22,6 +22,17 @@ app.use(
   })
 );
 app.use(express.json({ limit: process.env.JSON_LIMIT || '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: process.env.JSON_LIMIT || '1mb' }));
+
+// Debug middleware to log incoming requests
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      console.log(`[DEBUG] ${req.method} ${req.url} - Content-Type: ${req.headers['content-type']}`);
+    }
+    next();
+  });
+}
   if(process.env.NODE_ENV !== 'production') {
     app.use(morgan('dev'));
   } else {

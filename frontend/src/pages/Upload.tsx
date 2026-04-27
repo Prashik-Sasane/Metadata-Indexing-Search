@@ -30,47 +30,69 @@ export default function Upload() {
   const canSubmit = useMemo(() => !!file && !isUploading && isJsonValid, [file, isUploading, isJsonValid]);
 
   const onUpload = async () => {
-    if (!file || !canSubmit) return;
-    setError(null);
-    setIsUploading(true);
+  if (!file || !canSubmit) return;
 
-    try {
-      setUploadStep('Authenticating handshake...');
-      const uploadRes: any = await filesAPI.getUploadUrl(file.name, file.type || 'application/octet-stream');
-      const { uploadUrl, s3Key, bucket } = uploadRes.data || {};
+  setError(null);
+  setIsUploading(true);
 
-      setUploadStep('Streaming to S3...');
-      await axios.put(uploadUrl, file, {
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        onUploadProgress: (p) => {
-          const percent = Math.round((p.loaded * 100) / (p.total || 1));
-          setUploadStep(`Uploading: ${percent}%`);
-        }
-      });
+  try {
+    setUploadStep('Authenticating handshake...');
 
-      setUploadStep('Finalizing Index...');
-      const createRes: any = await filesAPI.create({
-        s3_key: s3Key,
-        bucket,
-        name: file.name,
-        size: file.size,
-        mime_type: file.type || 'application/octet-stream',
-        owner_id: ownerId.trim() || undefined,
-        tags: tagsCsv.split(',').reduce((acc, t) => {
-          const tag = t.trim();
-          if (tag) acc[tag] = true;
-          return acc;
-        }, {} as Record<string, boolean>),
-        custom: JSON.parse(customJson),
-      });
+    // ✅ STEP 1: Get upload URL
+    const uploadRes = await filesAPI.getUploadUrl(
+      file.name,
+      file.type || 'application/octet-stream'
+    );
 
-      setUploadStep('Complete.');
-      setTimeout(() => navigate(createRes?.data?.id ? `/files/${createRes.data.id}` : '/search'), 600);
-    } catch (e: any) {
-      setError(e?.message || 'Protocol Failure');
-      setIsUploading(false);
-    }
-  };
+    const { uploadUrl, s3Key, bucket } = uploadRes.data.data;
+
+    if (!uploadUrl) throw new Error('Failed to get upload URL');
+
+    // ✅ STEP 2: Upload to S3
+    setUploadStep('Streaming to S3...');
+
+    await axios.put(uploadUrl, file, {
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+      },
+      onUploadProgress: (p) => {
+        const percent = Math.round((p.loaded * 100) / (p.total || 1));
+        setUploadStep(`Uploading: ${percent}%`);
+      },
+    });
+
+    // ✅ STEP 3: Create metadata
+    setUploadStep('Finalizing Index...');
+
+    const createRes = await filesAPI.create({
+      s3_key: s3Key,
+      bucket,
+      name: file.name,
+      size: file.size,
+      mime_type: file.type || 'application/octet-stream',
+      owner_id: ownerId.trim() || undefined,
+      tags: tagsCsv.split(',').reduce((acc, t) => {
+        const tag = t.trim();
+        if (tag) acc[tag] = true;
+        return acc;
+      }, {} as Record<string, boolean>),
+      custom: JSON.parse(customJson),
+    });
+
+    const fileId = createRes.data.data?.id;
+
+    setUploadStep('Complete.');
+
+    setTimeout(() => {
+      navigate(fileId ? `/files/${fileId}` : '/search');
+    }, 600);
+
+  } catch (e: any) {
+    console.error(e);
+    setError(e?.error || e?.message || 'Upload failed');
+    setIsUploading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">

@@ -163,6 +163,15 @@ async function listFiles(req, res, next) {
  */
 async function getPresignedUploadUrl(req, res, next) {
   try {
+    console.log('[Upload URL] Body:', req.body);
+
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid request body. Ensure JSON is sent.',
+      });
+    }
+
     const { fileName, mimeType } = req.body;
 
     if (!fileName) {
@@ -181,8 +190,9 @@ async function getPresignedUploadUrl(req, res, next) {
       success: true,
       data: result,
     });
+
   } catch (error) {
-    console.error('[FileController] Get upload URL error:', error.message);
+    console.error('[Upload URL ERROR]', error);
     next(error);
   }
 }

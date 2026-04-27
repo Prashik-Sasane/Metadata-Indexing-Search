@@ -1,8 +1,3 @@
-/**
- * Search Service - DSA-powered search with PostgreSQL hydration
- * Routes queries to appropriate DSA structures and hydrates results
- */
-
 const { query } = require('../../config/db.js');
 
 class SearchService {
