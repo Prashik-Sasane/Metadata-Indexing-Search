@@ -10,7 +10,7 @@ const apiClient = axios.create({
   timeout: 30000,
 });
 
-// Request log
+// Logs
 apiClient.interceptors.request.use(
   (config) => {
     console.log('[API Request]', config.method?.toUpperCase(), config.url, config.data);
@@ -19,15 +19,28 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response log (DO NOT MODIFY STRUCTURE)
 apiClient.interceptors.response.use(
-  (response) => response, // ✅ keep full response
+  (response) => response,
   (error) => {
     console.error('[API Error]', error.response?.data || error.message);
     return Promise.reject(error.response?.data || error);
   }
 );
 
+// ----------------------------
+// SEARCH API
+// ----------------------------
+export const searchAPI = {
+  search: (query: string) =>
+    apiClient.get('/search', { params: { q: query } }),
+
+  getStats: () =>
+    apiClient.get('/search/stats'),
+};
+
+// ----------------------------
+// FILES API (FIXED VERSION)
+// ----------------------------
 export const filesAPI = {
   getUploadUrl: (fileName: string, mimeType: string) =>
     apiClient.post('/files/upload-url', { fileName, mimeType }),
@@ -37,17 +50,19 @@ export const filesAPI = {
 
   getDownloadUrl: (id: string) =>
     apiClient.get(`/files/${id}/download-url`),
+
+  // ✔ Missing functions (Added)
+  list: (params?: any) =>
+    apiClient.get('/files', { params }),
+
+  getById: (id: string) =>
+    apiClient.get(`/files/${id}`),
+
+  delete: (id: string) =>
+    apiClient.delete(`/files/${id}`),
+
+  updateTags: (id: string, tags: Record<string, boolean>) =>
+    apiClient.put(`/files/${id}/tags`, { tags }),
 };
-
-export const searchAPI = {
-  search: (params: Record<string, any>) =>
-    apiClient.get('/search', { params }),
-
-  getSuggestions: (prefix: string, limit = 10) =>
-    apiClient.get('/search/suggestions', { params: { prefix, limit } }),
-
-  getStats: () =>
-    apiClient.get('/search/stats'),
-}; 
 
 export default apiClient;
