@@ -5,7 +5,7 @@
 const { IngestService } = require('../services/ingestService');
 const { MetadataService } = require('../services/metadataService');
 const { getIndexManager } = require('../services/indexManagerSingleton');
-const { z } = require('zod');
+const z = require('zod');
 
 // Get shared IndexManager instance
 const indexManager = getIndexManager();
@@ -21,7 +21,7 @@ const FileCreateSchema = z.object({
   mime_type: z.string().optional(),
   owner_id: z.string().uuid().optional(),
   tags: z.record(z.boolean()).optional().default({}),
-  custom: z.record(z.any()).optional().default({}),
+  custom: z.record(z.unknown()).optional().default({}),
 });
 
 const TagUpdateSchema = z.object({
