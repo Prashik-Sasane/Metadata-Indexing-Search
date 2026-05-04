@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard.tsx';
 import Search from './pages/Search.tsx';
 import FileDetail from './pages/FileDetail.tsx';
 import Upload from './pages/Upload.tsx';
+import Crawler from './pages/Crawler.tsx';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/search" element={<Search />} />
         <Route path="/upload" element={<Upload />} />
+        <Route path="/crawler" element={<Crawler />} />
         <Route path="/files/:id" element={<FileDetail />} />
       </Routes>
     </div>

@@ -70,4 +70,18 @@ export const filesAPI = {
     apiClient.put(`/files/${id}`, { tags }),
 };
 
+// ----------------------------
+// CRAWLER API
+// ----------------------------
+export const crawlerAPI = {
+  /** Start a crawl — returns the API base URL for SSE streaming */
+  getCrawlUrl: () => `${API_BASE_URL}/crawler/crawl`,
+
+  /** Get all crawled pages */
+  getResults: () => apiClient.get('/crawler/results'),
+
+  /** Clear all crawled pages */
+  clearResults: () => apiClient.delete('/crawler/results'),
+};
+
 export default apiClient;

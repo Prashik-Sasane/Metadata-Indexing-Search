@@ -1,114 +1,305 @@
 {
   "version": 2,
-  "timestamp": "2026-05-04T10:40:32.991Z",
+  "timestamp": "2026-05-04T11:42:15.763Z",
   "fileStore": [
     {
-      "key": "68bb3a8a-a4de-41ac-983d-88b9a2b2b4ec",
+      "key": "71aadc8c-800e-4558-a8d3-cd4914a34d32",
       "value": {
-        "id": "68bb3a8a-a4de-41ac-983d-88b9a2b2b4ec",
-        "s3_key": "uploads/1777889302266-IEEE_Conference_Template.pdf",
-        "bucket": "metadata-search-files",
-        "name": "IEEE_Conference_Template.pdf",
-        "size": 282494,
-        "mime_type": "application/pdf",
-        "created_at": "2026-05-04T10:08:22.625Z",
-        "updated_at": "2026-05-04T10:08:22.625Z",
-        "tags": {},
-        "custom": {
-          "parsedContent": {
-            "format": "PDF",
-            "pageCount": 4,
-            "pdfVersion": "",
-            "title": "",
-            "author": ""
-          }
-        },
-        "content": "OptiSprint AI Engine: AI-Augmented Agile\nResource Optimization\nfor Predictable Sprint Delivery\nSarvesh S. Gattani\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nsarvesh.gattani24@vit.edu\nPrashik R. Sasane\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nprashik.sasane24@vit.edu\nMadhuri Karnik\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nmadhuri.karnik@vit.edu\nVivek Patil\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nvivek.patil243@vit.edu\nSiddhesh Dabbawar\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nsiddhesh.dabbawar241@vit.edu\nAbstract—Traditional Agile sprint planning frequently suffers\nfrom the Planning Fallacy, wherein cognitive biases lead to\nsystematic underestimation of task complexity and overesti-\nmation of developer velocity. This paper presents OptiSprint,\nan AI-Augmented Resource Optimization Engine designed to\nreplace intuition-driven planning with data-driven simulation.\nThe system employs a dual-model supervised learning archi-\ntecture: a Random Forest Regressor for continuous delivery\ntime prediction and a Random Forest Classifier for delay risk\nestimation. These models are integrated into a FastAPI inference\nserver and governed by a Weighted Objective Function that\nsimultaneously optimizes for speed (70%) and risk mitigation\n(30%). A MySQL-backed load management layer enforces real-\ntime capacity constraints, while a post-prediction Audit Layer\nflags burnout conditions and skill-complexity mismatches before\nrecommendations reach the planner.\nIndex Terms—Agile Sprint Planning, Random Forest, Resource\nOptimization, Risk Classification, FastAPI, Supervised Learning,\nWeighted Objective Function, Developer Burnout Detection,\nTechnical Debt\nI. INTRODUCTION\nSoftware engineering teams following Agile methodolo-\ngies rely heavily on sprint planning sessions to estimate\ntask durations and assign developers to user stories. Despite\ndecades of practice, these sessions are chronically affected\nby the Planning Fallacy—a well-documented cognitive bias in\nwhich individuals underestimate the time and effort required\nto complete future tasks, regardless of past experience [1].\nThe consequences of poor sprint planning are tangible:\novercommitted sprints result in missed deadlines, overtime,\ndeveloper burnout, and gradual accumulation of technical debt.\nConversely, over-conservative planning leads to underutilized\nresources and delayed feature delivery. Neither extreme serves\nthe engineering organization or its stakeholders.\nThe OptiSprint AI Engine addresses this problem by intro-\nducing a machine learning-driven simulation layer between\na project manager’s intent and final sprint commitments.\nRather than relying on a team’s collective memory of past\nperformance, OptiSprint ingests historical sprint logs, trains\npredictive models on structured features, and generates scored\nrecommendations that balance delivery speed against delivery\nsafety.\nThis research makes the following contributions:\n• A dual-model pipeline combining regression and classi-\nfication to produce both a time estimate and a delay risk\nscore for every developer-task pairing.\n• A Weighted Objective Function that formalizes the trade-\noff between efficiency and risk into a single actionable\nscore.\n• A real-time load management system built on MySQL to\nenforce capacity constraints dynamically.\n• An Audit Layer performing post-prediction quality\nchecks, identifying burnout risks and skill-complexity\nmismatches before recommendations are committed.\nII. LITERATURE REVIEW\nThe intersection of machine learning and software project\nmanagement has attracted growing research attention. Early\nwork established that historical project data contains predictive\nsignal that deterministic planning models fail to exploit.\nEfforts in software effort estimation [2] showed that en-\nsemble methods outperform single-model approaches on high-\nvariance project datasets. Researchers applied Random Forest\nmodels to story-point estimation in Agile contexts [3], finding\nthat feature engineering around team composition and velocity\nsubstantially improved accuracy.\n\n-- 1 of 4 --\n\nRisk classification in software projects has been approached\nvia logistic regression [4] and gradient boosting [5], with\nthe latter demonstrating superior performance on imbalanced\ndatasets where delay events are rarer than on-time comple-\ntions. Sprint-level delay prediction remains an underexplored\narea.\nMulti-objective scheduling in software teams has been\nframed as a constraint satisfaction problem [6], typically\nrequiring domain experts to encode constraints manually. A\nlearned Weighted Objective Function offers a more adaptive\nalternative.\nDeveloper burnout has been studied extensively in organiza-\ntional behavior literature [7], but integration of burnout signals\ninto automated planning tools is novel. Technical debt from\nskill-complexity mismatches has been discussed qualitatively\n[8] but not operationalized as a runtime audit check.\nThe present work synthesizes these strands by delivering a\nunified system combining prediction, optimization, and audit\nin a single inference pipeline.\nIII. PROBLEM STATEMENT\nTraditional Agile sprint planning falls victim to the Planning\nFallacy, where human bias leads to underestimating task com-\nplexity and overestimating developer velocity. This research\naddresses the need for a systematic, data-driven approach to\nresource allocation that balances speed with delivery safety.\nSpecifically, the system must address the following chal-\nlenges:\n• Predicting actual task completion hours accurately from\nstructural features such as story points and developer\nexperience.\n• Estimating the probability of task delay as a continuous\nrisk score in the range [0.0, 1.0].\n• Combining time and risk signals into a unified assignment\nscore that planners can act upon.\n• Enforcing capacity constraints to prevent any developer\nfrom being over-allocated during a sprint.\n• Identifying potentially harmful assignments from a well-\nbeing or quality standpoint before they are committed.\nIV. METHODOLOGY: THE TRAIN-BRAIN PIPELINE\nThe OptiSprint system is built around a supervised learning\narchitecture trained on historical sprint data. The pipeline\ntransforms raw project artifacts into structured numerical fea-\ntures, trains two independent models, and exposes their outputs\nthrough a REST API for real-time inference.\nA. Data Transformation\nRaw project logs are preprocessed into a tabular feature\nmatrix. Key engineered features include:\n• Story Points: Ordinal integer representing task complex-\nity estimated during backlog refinement.\n• Experience Level: Ordinal encoding of developer senior-\nity — 1 for Junior, 2 for Mid-level, 3 for Senior.\n• Team Load Percentage: Current utilization of the as-\nsigned developer, expressed as 0–100.\n• Actual Hours (Regression Target): Ground-truth com-\npletion time from sprint retrospective logs.\n• Delayed (Classification Target): Binary label indicating\nwhether a task exceeded its planned sprint boundary.\nB. Dual-Model Architecture\nTwo models are trained independently on the feature set:\n• Time Model (Random Forest Regressor): Predicts\ncontinuous Actual Hours. The ensemble handles non-\nlinear interactions between experience level and story\ncomplexity, minimizing Mean Squared Error (MSE).\n• Risk Model (Random Forest Classifier): Estimates\ndelay probability as a continuous score in [0.0, 1.0],\npreferred over a hard binary label to enable downstream\nweighting.\nFig. 1. OptiSprint Train-Brain Pipeline: from raw sprint logs to model-ready\nfeatures and dual-model inference.\nV. SYSTEM ARCHITECTURE & INFERENCE\nThe production inference system implements a decoupled\ntechnical stack designed for low-latency response and stateful\nload tracking.\nA. Backend Inference Server\nA FastAPI application hosts the predictive models. At\nstartup, both models are deserialized from .pkl files using\njoblib, making them available in memory for sub-second\ninference on incoming POST requests containing task meta-\ndata.\nB. Weighted Objective Function\nThe core optimization logic is encoded in the scoring\nformula:\nScore = ( ˆ\tH × 0.7) + (R × 100 × 0.3) (1)\nwhere ˆ\tH is the predicted completion hours and R is the\nestimated delay risk probability. This formulation ensures 70%\nof the assignment decision is driven by raw efficiency while\nthe remaining 30% acts as a safety buffer penalizing high-\nrisk assignments. The developer with the lowest combined\nscore for a given task receives the recommendation. The\nfactor of 100 normalizes the risk component to the same\norder of magnitude as hour estimates, making the weighting\nmeaningful.\n\n-- 2 of 4 --\n\nC. Operational Load Management\nA MySQL database maintains a CurrentLoad table\nrecording cumulative assigned hours for every developer\nwithin the active sprint window. Each inference call atomi-\ncally updates the record, preventing the optimizer from over-\nassigning work to a single high-performing developer.\nVI. THE AUDIT & QUALITY LAYER\nA post-prediction Audit Layer validates each recommended\nassignment against two categories of risk before surfacing\nresults to the project planner.\nA. Burnout Risk Detection\nAny developer whose cumulative sprint load would exceed\n40 hours is flagged. This threshold aligns with standard\noccupational health guidelines. Flagged assignments surface as\nwarnings rather than hard blocks, preserving planner agency\nwhile ensuring visibility.\nB. Skill-Complexity Mismatch Detection\nAssignments where a Junior developer (level 1) is matched\nto a high-complexity task (story points ≥ 8) trigger a strategic\nmismatch warning, as such pairings are statistically associated\nwith elevated technical debt and increased defect rates.\nFig. 2. Audit Layer decision flow: burnout threshold check and skill-\ncomplexity mismatch det",
-        "wordCount": 1366
-      }
-    },
-    {
-      "key": "dad96d80-7f43-412f-9b93-718a127d426b",
-      "value": {
-        "id": "dad96d80-7f43-412f-9b93-718a127d426b",
-        "s3_key": "uploads/1777888288086-test_upload.txt",
-        "bucket": "metadata-search-files",
-        "name": "test_upload.txt",
-        "size": 62,
-        "mime_type": "text/plain",
-        "created_at": "2026-05-04T09:51:28.122Z",
-        "updated_at": "2026-05-04T09:51:28.122Z",
+        "id": "71aadc8c-800e-4558-a8d3-cd4914a34d32",
+        "s3_key": "crawled/webscraper.io/71aadc8c-800e-4558-a8d3-cd4914a34d32",
+        "bucket": "crawler",
+        "name": "Screenshots | Web Scraper",
+        "size": 536,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:23.058Z",
+        "updated_at": "2026-05-04T11:37:23.058Z",
         "tags": {
-          "test": true,
-          "demo": true,
-          "sample": true
+          "crawled": true,
+          "webscraper.io": true
         },
         "custom": {
-          "parsedContent": {
-            "lineCount": 1,
-            "charCount": 61,
-            "format": "TXT"
-          }
+          "type": "crawled_page",
+          "url": "https://webscraper.io/screenshots",
+          "depth": 2,
+          "outgoingLinks": 28,
+          "crawledAt": "2026-05-04T11:37:23.058Z"
         },
-        "content": "Hello world this is a test file with some content for parsing",
-        "wordCount": 12
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Web Scraper Screenshots Open Web Scraper Select elements with data Products Web Scraper browser extension Web Scraper Cloud Company About us Contact Website Privacy Policy Browser Extension Privacy Policy Media kit Resources Blog Documentation Video Tutorials Screenshots Test Sites Forum Status CONTACT US info@webscraper.io Ubelu 5-71, Adazi, Latvia, LV-2164 Copyright © 2026 Web Scraper | All rights reserved",
+        "wordCount": 74
       }
     },
     {
-      "key": "0da1eaeb-aebf-4268-9b50-01178efe4417",
+      "key": "cde12eca-acbd-4b4c-8553-6347ec0cdf6e",
       "value": {
-        "id": "0da1eaeb-aebf-4268-9b50-01178efe4417",
-        "s3_key": "uploads/1777889447290-6_Unit 5-Multidimensional Spatial Data Structures.pdf",
-        "bucket": "metadata-search-files",
-        "name": "6_Unit 5-Multidimensional Spatial Data Structures.pdf",
-        "size": 2898823,
-        "mime_type": "application/pdf",
-        "created_at": "2026-05-04T10:10:48.721Z",
-        "updated_at": "2026-05-04T10:10:48.721Z",
-        "tags": {},
-        "custom": {
-          "parsedContent": {
-            "format": "PDF",
-            "pageCount": 117,
-            "pdfVersion": "",
-            "title": "",
-            "author": ""
-          }
+        "id": "cde12eca-acbd-4b4c-8553-6347ec0cdf6e",
+        "s3_key": "crawled/webscraper.io/cde12eca-acbd-4b4c-8553-6347ec0cdf6e",
+        "bucket": "crawler",
+        "name": "Pricing | Web Scraper",
+        "size": 5000,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:19.940Z",
+        "updated_at": "2026-05-04T11:37:19.940Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
         },
-        "content": "Unit 5-Multidimensional Spatial Data Structures\n-Dr. Radhika V. Kulkarni\nAssociate Professor, Dept. of Computer Engineering,\nVishwakarma Institute of Technology, Pune.\nSources:\n1. Sartaj Sahni, Dinesh P. Mehta, “Handbook of Data Structures and Applications,” 2nd edition, Chapman & Hall/CRC.\n2. E. Horwitz, S. Sahani, Anderson-Freed, “Fundamentals of Data Structures in C,” 2nd edition, Universities Press.\n3. T. Cormen, R. Rivest, C. Stein, C. Leiserson, “Introduction to Algorithms”, 2nd Edition, PHI publication.\n4. Peter Brass, Advanced Data Structures, 1st Edition, Cambridge University Press.\nRVK-DS2-Unit 5 1\t28 April 2026\n\n-- 1 of 117 --\n\nDISCLAIMER\nThis presentation is created as a reference material for the\nstudents of SY-CS VIT (AY 2025-26).\nIt is restricted only for the internal use, and any circulation is\nstrictly prohibited.\nRVK-DS2-Unit 5 2\t28 April 2026\n\n-- 2 of 117 --\n\nSyllabus\nUnit 5: Multidimensional Spatial Data Structures (5 Hours)\nIntroduction, point data, region data and Rectangle data. Quad trees and\nOctrees: Quad trees for point data, spatial queries with region quad tree. Interval\ntrees, Segment trees, Range trees, and Priority Search Trees. Binary Space\nPartitioning Trees, R-trees.\nRVK-DS2-Unit 5 3\t28 April 2026\n\n-- 3 of 117 --\n\nUnit 5.1 – Multidimensional Data Structures\nSources:\n1. Sartaj Sahni, Dinesh P. Mehta, “Handbook of Data Structures and Applications,” 2nd edition, Chapman & Hall/CRC.\n2. E. Horwitz, S. Sahani, Anderson-Freed, “Fundamentals of Data Structures in C,” 2nd edition, Universities Press.\n3. T. Cormen, R. Rivest, C. Stein, C. Leiserson, “Introduction to Algorithms”, 2nd Edition, PHI publication.\n4. Peter Brass, Advanced Data Structures, 1st Edition, Cambridge University Press.\nRVK-DS2-Unit 5 4\t28 April 2026\n\n-- 4 of 117 --\n\n• Multidimensional spatial data structures are techniques for organizing data based on\nposition to enable efficient spatial queries (search, range, nearest neighbor).\n• These data structures are used to store and manage multidimensional data, typically in 2D\nor 3D space.\nPurpose:\n• Efficient spatial searching\n• Range queries\n• Nearest neighbor search\n• Collision detection\nExample spatial objects:\n• points\n• rectangles\n• line segments\n• regions\nIntroduction\n28 April 2026 RVK-DS2-Unit 5 5\n\n-- 5 of 117 --\n\n• Spatial data can also contain more than just location-specific information.\n• Key types include hierarchical tree structures (R-trees, KD-trees, Quadtrees) for point/region\nindexing and grid-based structures (Uniform Spatial Subdivision) for partitioning space into\ncells.\nTypes of Spatial Data Structures\nTriangulated Irregular\nNetwork\n28 April 2026 RVK-DS2-Unit 5 6\n\n-- 6 of 117 --\n\n• Vector data\no Vector data is used to represent geographic features\nusing points, lines, and polygons.\no Common file types include Shapefiles (.shp), GeoJSON,\nKML, and GML.\n• Raster data\no Raster data is represented as a grid of pixels.\no Each pixel within a raster has a value, such as that cell’s\ncolour, height (z), or temperature value.\no Rasters can represent images or other forms of\ncontinuous data, such as digital elevation models\n(DEMs) or orthoimagery taken from satellites and other\naerial devices.\n• Triangulated Irregular Network (TIN)\no A TIN (Triangulated Irregular Network) is a spatial data\nstructure made of non-overlapping triangles created\nfrom irregularly spaced points.\nTriangulated Irregular Network (TIN)\n28 April 2026 RVK-DS2-Unit 5 7\n\n-- 7 of 117 --\n\nMain Categories of Multidimensional Data Structures (1)\n1. Point data: Database objects are k-tuples in a k-dimensional space.\n– Geometrically, tuple elements correspond to coordinates in space.\n– Represents distinct, non-adjacent features that have no length or area. They are zero-\ndimensional, defined solely by a pair of coordinates (x,y or latitude/longitude).\n– The domains of elements can be arbitrary.\n– Analysis: Used in point pattern analysis to understand spatial distribution (e.g., density of\noccurrences).\n– Applications: multi-attribute retrieval from relational databases (access methods based on\nseveral attributes), document databases, feature vectors of multimedia objects, Specific\nlocations like hospitals, schools, cities, or points of interest on a map.\n28 April 2026 RVK-DS2-Unit 5 8\n\n-- 8 of 117 --\n\n2. Region data: Database objects have some kind of shape and size, such as lines, rectangles,\nand polygons on the 2D Euclidean plane, or lines, rectangular boxes, and polyhedrons in\n3D space\n– Represents areas or shapes that occupy space, often referred to as polygon data in GIS.\n– Points are a special case of spatial data types.\n– Applications: Used to represent geographic boundaries like states, countries, or specific zones. CAD\ndrawings, VLSI design, geography, image processing.\n– Types: Can include contiguous areas, choropleth maps (showing area density), or classified regions.\n3. Rectangle data: Refers to data structured in rows and columns or data represented by\nrectangular shapes. This can refer to two distinct concepts:\n– Spatial/Graphical Rectangles: Used in R-trees to group spatial data into bounding boxes, or in diagrams to\nrepresent area or quantity (like bar charts or histograms).\n– Tabular Data: Structured data frames, or data sets organized by categories, where every cell belongs to a\nrow and a column.\n– Represented via corners (x1,y1,x2,y2) or a corner plus width and height.\n28 April 2026 RVK-DS2-Unit 5 9\nMain Categories of Multidimensional Data Structures (2)\n\n-- 9 of 117 --\n\nMultidimensional Data Structures (3)\n• Key Differences:\n• Point vs. Region: Point data is discrete and has no area, while region data covers a\nspecific surface area.\n• Rectangle vs. Region: Rectangular data is specifically aligned or constrained to four\nsides and often used in spatial indexing (R-trees), while region data can be irregular\npolygons.\n• Structure: Rectangular data (tabular) is optimal for analytical processing, while non-\nrectangular spatial data is better for spatial relationships.\n28 April 2026 RVK-DS2-Unit 5 10\n\n-- 10 of 117 --\n\nPoint data represents locations with\ncoordinates.\nExample: City locations\nP1 = (2,3)\nP2 = (5,7)\nP3 = (8,1)\nApplications:\n• GPS locations\n• Weather stations\n• Sensors\nExample Query:\nFind all points within a distance 5\nof (4,4)\nDistance Formula\nDistance between two points:\nAll three points satisfy the condition.\n1. Point Data\n28 April 2026 RVK-DS2-Unit 5 11\n\n-- 11 of 117 --\n\n2. Region Data\nRegion data represents areas or zones in space.\nExample:\n• Agricultural zones\n• Forest regions\n• Urban areas\nRepresentation:\n• Region A → polygon\n• Region B → grid area\nUsed in:\n• satellite maps\n• land classification\n28 April 2026 RVK-DS2-Unit 5 12\n\n-- 12 of 117 --\n\n3. Rectangle Data\nRectangle data represents objects as rectangles (bounding boxes).\nExample: Rectangle R1\n(x1,y1) = (1,1)\n(x2,y2) = (4,4)\nApplications:\n• Database indexing\n• Image processing\n• GIS\nExample Query:\nFind all rectangles overlapping a given region\n28 April 2026 RVK-DS2-Unit 5 13\n\n-- 13 of 117 --\n\nMultidimensional Data Structures: Preliminaries\nTerminology:\n◼ PAM = Point Access Method\n◼ SAM = Spatial Access Method\nGeneral requirements for multidimensional data structures:\n◼ Good storage utilization should be guaranteed (70% is sufficient)\n◼ Simple tasks should require only a small number of disk accesses\n◼ Different dimensions should be treated in a symmetric way\n◼ Clustering of objects should conform with geometric proximity, to support efficient\nprocessing of range queries.\n◼ The structure should enable dynamic reorganization, when the data set grows and shrinks\n(such as B-tree, linear hashing, etc.).\n◼ Algorithms for search and update should be simple.\n◼ The structure should support different kinds of queries.\n\n-- 14 of 117 --\n\nIllustration of Basic Query Types in 2 Dimensions\nX = data\npoint\n1 2 3 4 5 6 7 8 9 10 11 12 13 14 15\nX\nA\nB\nC\nD\nE\nF\nG\nH\nI\nJ\nK\nL\nM\nN\nX\nX\nX\nX\nX\nX\nX\nX\nX\nX X\ndim2\ndim1\nPartial match: (4,*) Exact match: (8,J)\nRange\nsearch:\n(10..13,\nD..G)\n\n-- 15 of 117 --\n\nArranging a Multidimensional Point Space\n◼ Fixed number (k) of dimensions, each with its own domain of values.\n◼ Variable-dimensional objects (such as documents with keywords) may be mapped to a fixed-\nlength representation (e.g. signature, bitmap, etc.)\n◼ Typical approach for arranging points:\nRepeated partitioning of the point set into a hierarchy:\n space-driven:\nPartition the current space into two/four/… equal-sized halves, and split the\npoint set accordingly.\n data-driven:\nPartition the point set into two or more subsets in a balanced way.\n\n-- 16 of 117 --\n\nMultidimensional Query Types\n◼ Exact-match queries: All coordinates (attributes) are fixed in the query. Logarithmic\ncomplexity should be achieved.\n◼ Partial-match queries: Only t out of total k coordinates are specified in the query. The rest\nmay have arbitrary values.\nLower bound for worst-case complexity: Ω(n1-t/k).\n◼ Range queries: For each dimension, a range of values is specified. Exact match: range = [c, c],\npartial-match: (-∞, ∞) for some coordinate.\n◼ Best-match queries: Find the nearest neighbor of point/area, specified by the query\nconditions (exact or range).\n◼ Finding k nearest neighbors: Generalization of the above.\n◼ Ranking query: k nearest neighbors in the order of proximity.\n\n-- 17 of 117 --\n\nUnit 5.2 – Quad Trees and Octrees\nSources:\n1. Sartaj Sahni, Dinesh P. Mehta, “Handbook of Data Structures and Applications,” 2nd edition, Chapman & Hall/CRC.\n2. E. Horwitz, S. Sahani, Anderson-Freed, “Fundamentals of Data Structures in C,” 2nd edition, Universities Press.\n3. T. Cormen, R. Rivest, C. Stein, C. Leiserson, “Introduction to Algorithms”, 2nd Edition, PHI publication.\n4. Peter Brass, Advanced Data Structures, 1st Edition, Cambridge University Press.\nRVK-DS2-Unit 5 18\t28 April 2026\n\n-- 18 of 117 --\n\nQuad Trees\nA Quad Tree divides 2D space into four equal quadrants recursively.\nEach node has 4 children.\nUsed for:\n• spatial indexing\n• image compression\n• collision detectio",
-        "wordCount": 1586
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/pricing",
+          "depth": 1,
+          "outgoingLinks": 32,
+          "crawledAt": "2026-05-04T11:37:19.939Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login ADVANCED WEB SCRAPING SOLUTIONS FOR ALL NEEDS Pricing Monthly Browser extension FREE Project $50/MO Professional $100/MO Scale $200/MO Enterprise Browser extension FREE INSTALL Project $50/MO FREE 7-day trial Professional $100/MO FREE 7-day trial Scale from$200/MO FREE 7-day trial Enterprise Custom Contact sales Local use only Automate in cloud Automate in cloud Automate in cloud Automate in cloud URL credits 5,000 20,000 Unlimited URL credits* Custom Parallel tasks 2 3 2+ parallel tasks Custom Data retention 30 days 30 days 60 days Custom API Scheduler Parser Data quality monitoring Data quality monitoring includes: Total record count Record count per column Failed pages Empty pages In-app and e-mail alerts Log-in feature Image download Export formats CSV, XLSX JSON Export integrations Dropbox Google Drive Google Cloud Google Sheets Microsoft Azure Amazon S3 Proxies Residential Available for 47 locations Add-on Proxy* Custom Datacenter Website accessibility Captcha bypass Bot protection bypass Automatic retries Support Web Scraper Support Community support Dedicated Customer Success Manager Scale plan Monthly Annual When choosing Scale plan you pay for parallel running jobs. You can increase or decrease the number of parallel running scraping job count as to suit your needs. The plan has an unlimited number of URL credits. The amount of URLs that can be scraped per month depends on parallel running job count, configured request interval, target site response speed and driver that is used to access the page. Full JS driver executes all JavaScript in a page while Fast driver skips JavaScript execution. Scale plan price calculator Parallel active job count: - + Price Scraped URL count with Full JS driver Scraped URL count with Fast driver Close Add-on Proxy To make the Scale plan cost-effective, only a free US datacenter proxy is included. As an optional add-on, residential proxy is available for $2.5/GB. This ensures you only pay for the bandwidth you actually use. When estimating proxy expenses, consider the average page size. On average, a page scraped with no rendering is 50–150 KB, while a page scraped with full rendering is 100–300 KB. Proxy bandwidth calculator Page size (KB): Page count: Bandwidth (GB) Estimated price: Datacenter (US) Proxy, included $0.00 Estimated price: Residential Proxy Close Contact Sales Talk to a Data Expert First Name * Last Name * Email Address * Company Error: An error occurred. Please contact us directly at info@webscraper.io. Done! Your request has been sent successfully. We will get back to you as soon as possible. Cancel Get Expert Advice Benefit from industry leading support Diego Kremer Simply AMAZING. Was thinking about coding myself a simple scraper for a project and then found this super easy to use and very powerful scraper. Worked perfectly with all the websites I tried on. Saves a lot of time. Thanks for that! Carlos Figueroa Powerful tool that beats the others out there. Has a learning curve to it but once you conquer that the sky's the limit. Definitely a tool worth making a donation on and supporting for continued development. Way to go for the authoring crew behind this tool. Jonathan H This is fantastic! I'm saving hours, possibly days. I was trying to scrap and old site, badly made, no proper divs or markup. Using the WebScraper magic, it somehow \"knew\" the pattern after I selected 2 elements. Amazing. Yes, it's a learning curve and you HAVE to watch the video and read the docs. Don't rate it down just because you can't be bothered to learn it. If you put the effort in, this will save your butt one day! Frequently asked questions What is a URL Credit? A URL credit represents a single page loaded by the Web Scraper Cloud. For example if the scraper has to go through 100 pages, then 100 URL credits will be charged. If you are extracting 100 records from a single page, only one URL credit will be charged. Will I be able to scrape a specific site? From our own experience we can say that none of the universal web scraping tools can scrape every site. You have to try it out for yourself. Try Web Scraper Cloud for free with no investments. Do I need to input my credit card information to start free trial? No. How Scale plan differs from other plans? Scale plan is built for large volume scraping. It offers unlimited URL credits with limited running scraping jobs that you can scale up or down as needed. Can I upgrade or downgrade my subscription plan? Yes, you can upgrade your plan at any time during your subscription period. If you wish to downgrade your plan, you can schedule the changes, and the downgrade will take effect at the start of the next billing cycle. Products Web Scraper browser extension Web Scraper Cloud Company About us Contact Website Privacy Policy Browser Extension Privacy Policy Media kit Resources Blog Documentation Video",
+        "wordCount": 824
       }
     },
     {
-      "key": "104a73cc-5e52-4a58-98d4-5f896b447c71",
+      "key": "644989a5-162c-4d29-841d-b5078244d8f1",
       "value": {
-        "id": "104a73cc-5e52-4a58-98d4-5f896b447c71",
-        "s3_key": "uploads/1777889188955-IEEE_Conference_Template.pdf",
+        "id": "644989a5-162c-4d29-841d-b5078244d8f1",
+        "s3_key": "crawled/webscraper.io/644989a5-162c-4d29-841d-b5078244d8f1",
+        "bucket": "crawler",
+        "name": "Test Sites | Web Scraper",
+        "size": 1451,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:22.283Z",
+        "updated_at": "2026-05-04T11:37:22.283Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/test-sites",
+          "depth": 1,
+          "outgoingLinks": 34,
+          "crawledAt": "2026-05-04T11:37:22.283Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Test Sites Here are some sites that you can use for training while learning how to use the Web Scraper. E-commerce site E-commerce site with multiple categories, subcategories. All items are loaded in one page. E-commerce site with pagination links E-commerce site with multiple categories, subcategories. Standard links are used for pagination. E-commerce site with AJAX pagination links E-commerce site with multiple categories, subcategories. Dynamic links that use data without reloading the page for pagination. E-commerce site with \"Load more\" buttons E-commerce site with multiple categories, subcategories. Instead of using pagination this site uses a \"Load more\" button to load more items. E-commerce site that loads items while scrolling E-commerce site with multiple categories, subcategories. Instead of using pagination this site loads items when user scrolls the page down. Table playground This page contains multiple tables. You can train using Table selector here. Products Web Scraper browser extension Web Scraper Cloud Company About us Contact Website Privacy Policy Browser Extension Privacy Policy Media kit Resources Blog Documentation Video Tutorials Screenshots Test Sites Forum Status CONTACT US info@webscraper.io Ubelu 5-71, Adazi, Latvia, LV-2164 Copyright © 2026 Web Scraper | All rights reserved",
+        "wordCount": 207
+      }
+    },
+    {
+      "key": "4e05eda4-3d6c-4d94-bacd-77014bb24d0d",
+      "value": {
+        "id": "4e05eda4-3d6c-4d94-bacd-77014bb24d0d",
+        "s3_key": "crawled/webscraper.io/4e05eda4-3d6c-4d94-bacd-77014bb24d0d",
+        "bucket": "crawler",
+        "name": "Web Scraper - The #1 web scraping extension",
+        "size": 5000,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:19.802Z",
+        "updated_at": "2026-05-04T11:37:19.802Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/",
+          "depth": 1,
+          "outgoingLinks": 53,
+          "crawledAt": "2026-05-04T11:37:19.802Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Powerful web scraper for regular and professional use Automate data extraction in 20 minutes Web Scraper is designed for regular and scheduled use to extract large amounts of data and easily integrate with other systems. Start FREE 7-day trial Install Chrome plugin FREE scraper for local use 800'000+ users ` Marketplace scrapers for popular websites Explore scrapers built with Web Scraper Explore marketplace Previous Amazon - products listings scraper E-commerce Listings Extracts product details from Amazon search results or category pages. amazon.com, amazon.de, and 16 others eBay - products listings scraper E-commerce Listings Extracts product data from eBay.com category and search result pages. ebay.com HomeDepot - products listings scraper E-commerce Listings Extracts product details from homedepot.com search results or category pages. Does not include sponsored and bundle items. homedepot.com, homedepot.ca, and 1 other Zillow - property listings scraper Real estate Listings Real estate listings from zillow.com. Based on start URLs targeting specific category and search result listing pages. zillow.com Yelp - businesses listings scraper Business listings Listings Extracts business listings data from yelp.com search results pages. yelp.com, yelp.co.uk, and 1 other Allegro - products listings scraper E-commerce Listings Extracts products listings data from allegro.pl search results. allegro.pl Amazon - ASIN scraper E-commerce Listings Extracts Amazon ASIN product details from Amazon product pages. amazon.com, amazon.de, and 16 others G2 - companies listings scraper Business listings Listings Company listings from g2.com. Based on start URLs targeting specific category listing pages. g2.com Eventbrite - events listings scraper Event listings Listings Extracts event listings data from eventbrite.com search results. eventbrite.com ZipRecruiter - jobs listings scraper Job listings Listings Extracts job listings data from ZipRecruiter search results. ziprecruiter.com Rightmove - property listings scraper Real estate Listings Extracts property listings data from rightmove.co.uk search results. rightmove.co.uk Trustpilot - businesses listings scraper Business listings Listings Extracts business listings data from trustpilot.com search results or category pages. trustpilot.com Next Find a scraper Point-and-click interface Configure scraper by pointing and clicking on elements. No coding required. Extract data from dynamic web sites Extract data from sited with multiple levels of navigation. Handle JavaScript sites Full JavaScript execution and waiting for Ajax requests Use sitemaps to customize data Customize data to different site structures Export data in CSV, XLSX and JSON formats Build scrapers, scrape sites and export data in CSV format directly from your browser. Use Web Scraper Cloud to export data in CSV, XLSX and JSON formats, access it via API, webhooks or get it exported via Dropbox, Google Cloud, Google Drive, Google Sheets, Microsoft Azure or Amazon S3 . Start using Web Scraper now! Install Web Scraper Chrome extension Firefox add-on Scrape your first site Streamline your data collection Web Scraper Cloud subscription or FREE trial required Automate data extraction in the cloud Run Web Scraper jobs in Web Scraper Cloud. Scheduler Scrape a site on hourly, daily or weekly basis API Manage scrapers through an API Proxy IP rotation through thousands of IP addresses Parser Streamline data post processing Start FREE 7-day trial Integrate data with any system API and webhook access Manage scraper and access data via API Data formats CSV, JSON, and XLSX supported Integrations Dropbox, Google Cloud, Google Drive, Google Sheets, Microsoft Azure, and Amazon S3 Supported 99.9% success rate Captcha Bypass Automatically handled, invisible to user Bot protection bypass Cloudflare, Datadome, PerimeterX and more Auto retry IP rotation, Fingerprint rotation Get started in 4 steps STEP 1 Install Chrome extension STEP 2 Create a sitemap using the extension Always free for unlimited local use STEP 3 Import the sitemap in Web Scraper Cloud and run it STEP 4 Use API or Data Export features to receive the data in your system Requires paid Web Scraper Cloud subscription Start FREE 7-day trial Pricing Monthly Browser extension FREE Project $50/MO Professional $100/MO Scale $200/MO Enterprise Browser extension FREE INSTALL Project $50/MO FREE 7-day trial Professional $100/MO FREE 7-day trial Scale from$200/MO FREE 7-day trial Enterprise Custom Contact sales Local use only Automate in cloud Automate in cloud Automate in cloud Automate in cloud URL credits 5,000 20,000 Unlimited URL credits* Custom Parallel tasks 2 3 2+ parallel tasks Custom Data retention 30 days 30 days 60 days Custom API Scheduler Parser Data quality monitoring Data quality monitoring includes: Total record count Record count per column",
+        "wordCount": 727
+      }
+    },
+    {
+      "key": "fff8266f-42eb-46ba-b03c-d11a57722b36",
+      "value": {
+        "id": "fff8266f-42eb-46ba-b03c-d11a57722b36",
+        "s3_key": "crawled/webscraper.io/fff8266f-42eb-46ba-b03c-d11a57722b36",
+        "bucket": "crawler",
+        "name": "Web Scraper Cloud | Web Scraper",
+        "size": 5000,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:23.207Z",
+        "updated_at": "2026-05-04T11:37:23.207Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/cloud-scraper",
+          "depth": 3,
+          "outgoingLinks": 34,
+          "crawledAt": "2026-05-04T11:37:23.207Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Streamline your data collection Web Scraper Cloud subscription or FREE trial required Automate data extraction in the cloud Run Web Scraper jobs in Web Scraper Cloud. Scheduler Scrape a site on hourly, daily or weekly basis API Manage scrapers through an API Proxy IP rotation through thousands of IP addresses Parser Streamline data post processing Start FREE 7-day trial Integrate data with any system API and webhook access Manage scraper and access data via API Data formats CSV, JSON, and XLSX supported Integrations Dropbox, Google Cloud, Google Drive, Google Sheets, Microsoft Azure, and Amazon S3 Supported 99.9% success rate Captcha Bypass Automatically handled, invisible to user Bot protection bypass Cloudflare, Datadome, PerimeterX and more Auto retry IP rotation, Fingerprint rotation Get started in 4 steps STEP 1 Install Chrome extension STEP 2 Create a sitemap using the extension Always free for unlimited local use STEP 3 Import the sitemap in Web Scraper Cloud and run it STEP 4 Use API or Data Export features to receive the data in your system Requires paid Web Scraper Cloud subscription Start FREE 7-day trial Pricing Monthly Browser extension FREE Project $50/MO Professional $100/MO Scale $200/MO Enterprise Browser extension FREE INSTALL Project $50/MO FREE 7-day trial Professional $100/MO FREE 7-day trial Scale from$200/MO FREE 7-day trial Enterprise Custom Contact sales Local use only Automate in cloud Automate in cloud Automate in cloud Automate in cloud URL credits 5,000 20,000 Unlimited URL credits* Custom Parallel tasks 2 3 2+ parallel tasks Custom Data retention 30 days 30 days 60 days Custom API Scheduler Parser Data quality monitoring Data quality monitoring includes: Total record count Record count per column Failed pages Empty pages In-app and e-mail alerts Log-in feature Image download Export formats CSV, XLSX JSON Export integrations Dropbox Google Drive Google Cloud Google Sheets Microsoft Azure Amazon S3 Proxies Residential Available for 47 locations Add-on Proxy* Custom Datacenter Website accessibility Captcha bypass Bot protection bypass Automatic retries Support Web Scraper Support Community support Dedicated Customer Success Manager Scale plan Monthly Annual When choosing Scale plan you pay for parallel running jobs. You can increase or decrease the number of parallel running scraping job count as to suit your needs. The plan has an unlimited number of URL credits. The amount of URLs that can be scraped per month depends on parallel running job count, configured request interval, target site response speed and driver that is used to access the page. Full JS driver executes all JavaScript in a page while Fast driver skips JavaScript execution. Scale plan price calculator Parallel active job count: - + Price Scraped URL count with Full JS driver Scraped URL count with Fast driver Close Add-on Proxy To make the Scale plan cost-effective, only a free US datacenter proxy is included. As an optional add-on, residential proxy is available for $2.5/GB. This ensures you only pay for the bandwidth you actually use. When estimating proxy expenses, consider the average page size. On average, a page scraped with no rendering is 50–150 KB, while a page scraped with full rendering is 100–300 KB. Proxy bandwidth calculator Page size (KB): Page count: Bandwidth (GB) Estimated price: Datacenter (US) Proxy, included $0.00 Estimated price: Residential Proxy Close Contact Sales Talk to a Data Expert First Name * Last Name * Email Address * Company Error: An error occurred. Please contact us directly at info@webscraper.io. Done! Your request has been sent successfully. We will get back to you as soon as possible. Cancel Get Expert Advice Benefit from industry leading support Diego Kremer Simply AMAZING. Was thinking about coding myself a simple scraper for a project and then found this super easy to use and very powerful scraper. Worked perfectly with all the websites I tried on. Saves a lot of time. Thanks for that! Carlos Figueroa Powerful tool that beats the others out there. Has a learning curve to it but once you conquer that the sky's the limit. Definitely a tool worth making a donation on and supporting for continued development. Way to go for the authoring crew behind this tool. Jonathan H This is fantastic! I'm saving hours, possibly days. I was trying to scrap and old site, badly made, no proper divs or markup. Using the WebScraper magic, it somehow \"knew\" the pattern after I selected 2 elements. Amazing. Yes, it's a learning curve and you HAVE to watch the video and read the docs. Don't rate it down just because you can't be bothered to learn it. If you put the effort in, this will save your butt one day! Frequently asked questions What is a URL Credit? A URL credit represents a single page loaded by the Web Scraper Cloud. For example if the scraper has to go through 10",
+        "wordCount": 808
+      }
+    },
+    {
+      "key": "c1513055-7818-48de-a623-bf838e9e1f0a",
+      "value": {
+        "id": "c1513055-7818-48de-a623-bf838e9e1f0a",
+        "s3_key": "crawled/webscraper.io/c1513055-7818-48de-a623-bf838e9e1f0a",
+        "bucket": "crawler",
+        "name": "Web Scraper - The #1 web scraping extension",
+        "size": 5000,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:23.530Z",
+        "updated_at": "2026-05-04T11:37:23.530Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/",
+          "depth": 3,
+          "outgoingLinks": 53,
+          "crawledAt": "2026-05-04T11:37:23.529Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Powerful web scraper for regular and professional use Automate data extraction in 20 minutes Web Scraper is designed for regular and scheduled use to extract large amounts of data and easily integrate with other systems. Start FREE 7-day trial Install Chrome plugin FREE scraper for local use 800'000+ users ` Marketplace scrapers for popular websites Explore scrapers built with Web Scraper Explore marketplace Previous Amazon - products listings scraper E-commerce Listings Extracts product details from Amazon search results or category pages. amazon.com, amazon.de, and 16 others eBay - products listings scraper E-commerce Listings Extracts product data from eBay.com category and search result pages. ebay.com HomeDepot - products listings scraper E-commerce Listings Extracts product details from homedepot.com search results or category pages. Does not include sponsored and bundle items. homedepot.com, homedepot.ca, and 1 other Zillow - property listings scraper Real estate Listings Real estate listings from zillow.com. Based on start URLs targeting specific category and search result listing pages. zillow.com Yelp - businesses listings scraper Business listings Listings Extracts business listings data from yelp.com search results pages. yelp.com, yelp.co.uk, and 1 other Allegro - products listings scraper E-commerce Listings Extracts products listings data from allegro.pl search results. allegro.pl Amazon - ASIN scraper E-commerce Listings Extracts Amazon ASIN product details from Amazon product pages. amazon.com, amazon.de, and 16 others G2 - companies listings scraper Business listings Listings Company listings from g2.com. Based on start URLs targeting specific category listing pages. g2.com Eventbrite - events listings scraper Event listings Listings Extracts event listings data from eventbrite.com search results. eventbrite.com ZipRecruiter - jobs listings scraper Job listings Listings Extracts job listings data from ZipRecruiter search results. ziprecruiter.com Rightmove - property listings scraper Real estate Listings Extracts property listings data from rightmove.co.uk search results. rightmove.co.uk Trustpilot - businesses listings scraper Business listings Listings Extracts business listings data from trustpilot.com search results or category pages. trustpilot.com Next Find a scraper Point-and-click interface Configure scraper by pointing and clicking on elements. No coding required. Extract data from dynamic web sites Extract data from sited with multiple levels of navigation. Handle JavaScript sites Full JavaScript execution and waiting for Ajax requests Use sitemaps to customize data Customize data to different site structures Export data in CSV, XLSX and JSON formats Build scrapers, scrape sites and export data in CSV format directly from your browser. Use Web Scraper Cloud to export data in CSV, XLSX and JSON formats, access it via API, webhooks or get it exported via Dropbox, Google Cloud, Google Drive, Google Sheets, Microsoft Azure or Amazon S3 . Start using Web Scraper now! Install Web Scraper Chrome extension Firefox add-on Scrape your first site Streamline your data collection Web Scraper Cloud subscription or FREE trial required Automate data extraction in the cloud Run Web Scraper jobs in Web Scraper Cloud. Scheduler Scrape a site on hourly, daily or weekly basis API Manage scrapers through an API Proxy IP rotation through thousands of IP addresses Parser Streamline data post processing Start FREE 7-day trial Integrate data with any system API and webhook access Manage scraper and access data via API Data formats CSV, JSON, and XLSX supported Integrations Dropbox, Google Cloud, Google Drive, Google Sheets, Microsoft Azure, and Amazon S3 Supported 99.9% success rate Captcha Bypass Automatically handled, invisible to user Bot protection bypass Cloudflare, Datadome, PerimeterX and more Auto retry IP rotation, Fingerprint rotation Get started in 4 steps STEP 1 Install Chrome extension STEP 2 Create a sitemap using the extension Always free for unlimited local use STEP 3 Import the sitemap in Web Scraper Cloud and run it STEP 4 Use API or Data Export features to receive the data in your system Requires paid Web Scraper Cloud subscription Start FREE 7-day trial Pricing Monthly Browser extension FREE Project $50/MO Professional $100/MO Scale $200/MO Enterprise Browser extension FREE INSTALL Project $50/MO FREE 7-day trial Professional $100/MO FREE 7-day trial Scale from$200/MO FREE 7-day trial Enterprise Custom Contact sales Local use only Automate in cloud Automate in cloud Automate in cloud Automate in cloud URL credits 5,000 20,000 Unlimited URL credits* Custom Parallel tasks 2 3 2+ parallel tasks Custom Data retention 30 days 30 days 60 days Custom API Scheduler Parser Data quality monitoring Data quality monitoring includes: Total record count Record count per column",
+        "wordCount": 727
+      }
+    },
+    {
+      "key": "b145a6fa-7ef9-40ee-bb48-5c67930ef6c5",
+      "value": {
+        "id": "b145a6fa-7ef9-40ee-bb48-5c67930ef6c5",
+        "s3_key": "crawled/webscraper.io/b145a6fa-7ef9-40ee-bb48-5c67930ef6c5",
+        "bucket": "crawler",
+        "name": "Marketplace | Web Scraper",
+        "size": 5000,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:20.109Z",
+        "updated_at": "2026-05-04T11:37:20.109Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/marketplace",
+          "depth": 1,
+          "outgoingLinks": 126,
+          "crawledAt": "2026-05-04T11:37:20.109Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Sitemap Marketplace Explore our collection of ready-made sitemaps. Start with prebuilt scrapers that you can customize to your needs. ASOS - products listings scraper E-commerce Listings Extracts product details from asos.com category and search results pages. Region is set to United Kingdom. asos.com Amazon - Bestsellers scraper E-commerce Listings Extracts product details from Amazon. Uses a Bestsellers page as the start URL. amazon.com, amazon.de, and 16 others Target - products listings scraper E-commerce Listings Extracts product details from target.com search results or category pages. target.com Amazon - products listings scraper E-commerce Listings Extracts product details from Amazon search results or category pages. amazon.com, amazon.de, and 16 others Amazon - ASIN scraper E-commerce Listings Extracts Amazon ASIN product details from Amazon product pages. amazon.com, amazon.de, and 16 others Sustainablesupply - products listings scraper E-commerce Listings Extracts product details from sustainablesupply.com search results or category/brand pages. sustainablesupply.com HomeDepot - products listings scraper E-commerce Listings Extracts product details from homedepot.com search results or category pages. Does not include sponsored and bundle items. homedepot.com, homedepot.ca, and 1 other G2 - companies listings scraper Business listings Listings Company listings from g2.com. Based on start URLs targeting specific category listing pages. g2.com Newegg - products listings scraper E-commerce Listings Extracts product details from newegg.com search results or category pages. Doesn't include \"combo deals\" in results. newegg.com, newegg.ca PropertyFinder - property listings scraper Real estate Listings Extracts property listings data from propertyfinder.ae search results or category pages. propertyfinder.ae Etsy - products listings scraper E-commerce Listings Extracts product details from etsy.com search results or product listing pages. etsy.com eBay - products listings scraper E-commerce Listings Extracts product data from eBay.com category and search result pages. ebay.com DIY - products listings scraper E-commerce Listings Extracts product details from diy.com search results or product listing pages. diy.com Costco - products listings scraper E-commerce Listings Extracts product details from costco.com search results or product listing pages. costco.com Sam’s Club - products listings scraper E-commerce Listings Extracts product details from samsclub.com search results or product listing pages. samsclub.com Rightmove - property listings scraper Real estate Listings Extracts property listings data from rightmove.co.uk search results. rightmove.co.uk Eventbrite - events listings scraper Event listings Listings Extracts event listings data from eventbrite.com search results. eventbrite.com CoinMarketCap - crypto listings scraper Finance listings Listings Extracts cryptocurrency listings data from coinmarketcap.com. coinmarketcap.com ZipRecruiter - jobs listings scraper Job listings Listings Extracts job listings data from ZipRecruiter search results. ziprecruiter.com Clutch - companies listings scraper Business listings Listings Extracts company listings data from clutch.co search results or category pages. clutch.co Superpages - businesses listings scraper Business listings Listings Extracts business listings data from superpages.com search results. superpages.com Europages - companies listings scraper Business listings Listings Extracts companies and service listings data from europages.co.uk search results or category pages. europages.co.uk Yellowpages - businesses listings scraper Business listings Listings Business listings from yellowpages.com. Based on start URLs targeting specific category and search result listing pages. yellowpages.com Zillow - property listings scraper Real estate Listings Real estate listings from zillow.com. Based on start URLs targeting specific category and search result listing pages. zillow.com Walmart - products listings scraper E-commerce Listings Extracts product details from walmart.com search results or category pages. walmart.com Noon - products listings scraper E-commerce Listings Extracts product details from noon.com search results or category pages. noon.com Allegro - products listings scraper E-commerce Listings Extracts products listings data from allegro.pl search results. allegro.pl Trustpilot - businesses listings scraper Business listings Listings Extracts business listings data from trustpilot.com search results or category pages. trustpilot.com Yelp - businesses listings scraper Business listings Listings Extracts business listings data from yelp.com search results pages. yelp.com, yelp.co.uk, and 1 other Tripadvisor - restaurants listings scraper Travel listings Listings Extracts restaurant listings data from Tripadvisor results ",
+        "wordCount": 637
+      }
+    },
+    {
+      "key": "511d78ff-0e7a-422b-8d2a-efd0b7deb350",
+      "value": {
+        "id": "511d78ff-0e7a-422b-8d2a-efd0b7deb350",
+        "s3_key": "crawled/webscraper.io/511d78ff-0e7a-422b-8d2a-efd0b7deb350",
+        "bucket": "crawler",
+        "name": "Allinone | Web Scraper Test Sites",
+        "size": 1040,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:19.698Z",
+        "updated_at": "2026-05-04T11:37:19.698Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/test-sites/e-commerce/allinone",
+          "depth": 0,
+          "outgoingLinks": 34,
+          "crawledAt": "2026-05-04T11:37:19.698Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Test Sites Home Computers Phones E-commerce training site Welcome to WebScraper e-commerce site. You can use this site for training to learn how to use the Web Scraper. Items listed here are not for sale. Top items being scraped right now $404.23 Lenovo ThinkPa... Lenovo ThinkPad E31-80, 13.3\" HD, Celeron 3855U 1.6GHz, 4GB, 128GB SSD, Windows 10 Home 12 reviews $729 Asus VivoBook... Asus VivoBook S14 (S406UA-BV041T) Starry Grey, 14\", Core i5-8250U, 8GB, 256GB SSD, Windows 10 Home, Eng kbd 2 reviews $537.99 iPad Mini Reti... Wi-Fi + Cellular, 32GB, Silver 8 reviews Products Web Scraper browser extension Web Scraper Cloud Company About us Contact Website Privacy Policy Browser Extension Privacy Policy Media kit Resources Blog Documentation Video Tutorials Screenshots Test Sites Forum Status CONTACT US info@webscraper.io Ubelu 5-71, Adazi, Latvia, LV-2164 Copyright © 2026 Web Scraper | All rights reserved",
+        "wordCount": 157
+      }
+    },
+    {
+      "key": "c53f3c4d-4d97-42af-bf5a-2c5caca12688",
+      "value": {
+        "id": "c53f3c4d-4d97-42af-bf5a-2c5caca12688",
+        "s3_key": "crawled/webscraper.io/c53f3c4d-4d97-42af-bf5a-2c5caca12688",
+        "bucket": "crawler",
+        "name": "Allinone | Web Scraper Test Sites",
+        "size": 1040,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:21.507Z",
+        "updated_at": "2026-05-04T11:37:21.507Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/test-sites/e-commerce/allinone",
+          "depth": 0,
+          "outgoingLinks": 34,
+          "crawledAt": "2026-05-04T11:37:21.507Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Test Sites Home Computers Phones E-commerce training site Welcome to WebScraper e-commerce site. You can use this site for training to learn how to use the Web Scraper. Items listed here are not for sale. Top items being scraped right now $404.23 Lenovo ThinkPa... Lenovo ThinkPad E31-80, 13.3\" HD, Celeron 3855U 1.6GHz, 4GB, 128GB SSD, Windows 10 Home 12 reviews $729 Asus VivoBook... Asus VivoBook S14 (S406UA-BV041T) Starry Grey, 14\", Core i5-8250U, 8GB, 256GB SSD, Windows 10 Home, Eng kbd 2 reviews $537.99 iPad Mini Reti... Wi-Fi + Cellular, 32GB, Silver 8 reviews Products Web Scraper browser extension Web Scraper Cloud Company About us Contact Website Privacy Policy Browser Extension Privacy Policy Media kit Resources Blog Documentation Video Tutorials Screenshots Test Sites Forum Status CONTACT US info@webscraper.io Ubelu 5-71, Adazi, Latvia, LV-2164 Copyright © 2026 Web Scraper | All rights reserved",
+        "wordCount": 157
+      }
+    },
+    {
+      "key": "5169feff-a891-4c77-bb79-8d465e8d0086",
+      "value": {
+        "id": "5169feff-a891-4c77-bb79-8d465e8d0086",
+        "s3_key": "crawled/webscraper.io/5169feff-a891-4c77-bb79-8d465e8d0086",
+        "bucket": "crawler",
+        "name": "Web Scraper Cloud | Web Scraper",
+        "size": 5000,
+        "mime_type": "text/html",
+        "owner_id": null,
+        "created_at": "2026-05-04T11:37:19.863Z",
+        "updated_at": "2026-05-04T11:37:19.863Z",
+        "tags": {
+          "crawled": true,
+          "webscraper.io": true
+        },
+        "custom": {
+          "type": "crawled_page",
+          "url": "https://webscraper.io/cloud-scraper",
+          "depth": 1,
+          "outgoingLinks": 34,
+          "crawledAt": "2026-05-04T11:37:19.863Z"
+        },
+        "content": "Toggle navigation Cloud Scraper Pricing Marketplace Learn Documentation Video Tutorials Test Sites Forum Install Cloud Login Streamline your data collection Web Scraper Cloud subscription or FREE trial required Automate data extraction in the cloud Run Web Scraper jobs in Web Scraper Cloud. Scheduler Scrape a site on hourly, daily or weekly basis API Manage scrapers through an API Proxy IP rotation through thousands of IP addresses Parser Streamline data post processing Start FREE 7-day trial Integrate data with any system API and webhook access Manage scraper and access data via API Data formats CSV, JSON, and XLSX supported Integrations Dropbox, Google Cloud, Google Drive, Google Sheets, Microsoft Azure, and Amazon S3 Supported 99.9% success rate Captcha Bypass Automatically handled, invisible to user Bot protection bypass Cloudflare, Datadome, PerimeterX and more Auto retry IP rotation, Fingerprint rotation Get started in 4 steps STEP 1 Install Chrome extension STEP 2 Create a sitemap using the extension Always free for unlimited local use STEP 3 Import the sitemap in Web Scraper Cloud and run it STEP 4 Use API or Data Export features to receive the data in your system Requires paid Web Scraper Cloud subscription Start FREE 7-day trial Pricing Monthly Browser extension FREE Project $50/MO Professional $100/MO Scale $200/MO Enterprise Browser extension FREE INSTALL Project $50/MO FREE 7-day trial Professional $100/MO FREE 7-day trial Scale from$200/MO FREE 7-day trial Enterprise Custom Contact sales Local use only Automate in cloud Automate in cloud Automate in cloud Automate in cloud URL credits 5,000 20,000 Unlimited URL credits* Custom Parallel tasks 2 3 2+ parallel tasks Custom Data retention 30 days 30 days 60 days Custom API Scheduler Parser Data quality monitoring Data quality monitoring includes: Total record count Record count per column Failed pages Empty pages In-app and e-mail alerts Log-in feature Image download Export formats CSV, XLSX JSON Export integrations Dropbox Google Drive Google Cloud Google Sheets Microsoft Azure Amazon S3 Proxies Residential Available for 47 locations Add-on Proxy* Custom Datacenter Website accessibility Captcha bypass Bot protection bypass Automatic retries Support Web Scraper Support Community support Dedicated Customer Success Manager Scale plan Monthly Annual When choosing Scale plan you pay for parallel running jobs. You can increase or decrease the number of parallel running scraping job count as to suit your needs. The plan has an unlimited number of URL credits. The amount of URLs that can be scraped per month depends on parallel running job count, configured request interval, target site response speed and driver that is used to access the page. Full JS driver executes all JavaScript in a page while Fast driver skips JavaScript execution. Scale plan price calculator Parallel active job count: - + Price Scraped URL count with Full JS driver Scraped URL count with Fast driver Close Add-on Proxy To make the Scale plan cost-effective, only a free US datacenter proxy is included. As an optional add-on, residential proxy is available for $2.5/GB. This ensures you only pay for the bandwidth you actually use. When estimating proxy expenses, consider the average page size. On average, a page scraped with no rendering is 50–150 KB, while a page scraped with full rendering is 100–300 KB. Proxy bandwidth calculator Page size (KB): Page count: Bandwidth (GB) Estimated price: Datacenter (US) Proxy, included $0.00 Estimated price: Residential Proxy Close Contact Sales Talk to a Data Expert First Name * Last Name * Email Address * Company Error: An error occurred. Please contact us directly at info@webscraper.io. Done! Your request has been sent successfully. We will get back to you as soon as possible. Cancel Get Expert Advice Benefit from industry leading support Diego Kremer Simply AMAZING. Was thinking about coding myself a simple scraper for a project and then found this super easy to use and very powerful scraper. Worked perfectly with all the websites I tried on. Saves a lot of time. Thanks for that! Carlos Figueroa Powerful tool that beats the others out there. Has a learning curve to it but once you conquer that the sky's the limit. Definitely a tool worth making a donation on and supporting for continued development. Way to go for the authoring crew behind this tool. Jonathan H This is fantastic! I'm saving hours, possibly days. I was trying to scrap and old site, badly made, no proper divs or markup. Using the WebScraper magic, it somehow \"knew\" the pattern after I selected 2 elements. Amazing. Yes, it's a learning curve and you HAVE to watch the video and read the docs. Don't rate it down just because you can't be bothered to learn it. If you put the effort in, this will save your butt one day! Frequently asked questions What is a URL Credit? A URL credit represents a single page loaded by the Web Scraper Cloud. For example if the scraper has to go through 10",
+        "wordCount": 808
+      }
+    },
+    {
+      "key": "ba88b486-9417-4740-9fb1-a2199dd3c0aa",
+      "value": {
+        "id": "ba88b486-9417-4740-9fb1-a2199dd3c0aa",
+        "s3_key": "uploads/1777894710015-rad14.cpp",
         "bucket": "metadata-search-files",
-        "name": "IEEE_Conference_Template.pdf",
-        "size": 282494,
-        "mime_type": "application/pdf",
-        "created_at": "2026-05-04T10:06:29.371Z",
-        "updated_at": "2026-05-04T10:06:29.371Z",
+        "name": "rad14.cpp",
+        "size": 1127,
+        "mime_type": "text/x-c++src",
+        "created_at": "2026-05-04T11:38:30.059Z",
+        "updated_at": "2026-05-04T11:38:30.059Z",
         "tags": {},
         "custom": {
           "parsedContent": {
-            "format": "PDF",
-            "pageCount": 4,
-            "pdfVersion": "",
-            "title": "",
-            "author": ""
+            "format": "CPP",
+            "mimeType": "text/x-c++src",
+            "binarySize": 1127
           }
         },
-        "content": "OptiSprint AI Engine: AI-Augmented Agile\nResource Optimization\nfor Predictable Sprint Delivery\nSarvesh S. Gattani\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nsarvesh.gattani24@vit.edu\nPrashik R. Sasane\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nprashik.sasane24@vit.edu\nMadhuri Karnik\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nmadhuri.karnik@vit.edu\nVivek Patil\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nvivek.patil243@vit.edu\nSiddhesh Dabbawar\nDept. of Computer Engineering\nVishwakarma Institute of Technology\nPune, Maharashtra, India\nsiddhesh.dabbawar241@vit.edu\nAbstract—Traditional Agile sprint planning frequently suffers\nfrom the Planning Fallacy, wherein cognitive biases lead to\nsystematic underestimation of task complexity and overesti-\nmation of developer velocity. This paper presents OptiSprint,\nan AI-Augmented Resource Optimization Engine designed to\nreplace intuition-driven planning with data-driven simulation.\nThe system employs a dual-model supervised learning archi-\ntecture: a Random Forest Regressor for continuous delivery\ntime prediction and a Random Forest Classifier for delay risk\nestimation. These models are integrated into a FastAPI inference\nserver and governed by a Weighted Objective Function that\nsimultaneously optimizes for speed (70%) and risk mitigation\n(30%). A MySQL-backed load management layer enforces real-\ntime capacity constraints, while a post-prediction Audit Layer\nflags burnout conditions and skill-complexity mismatches before\nrecommendations reach the planner.\nIndex Terms—Agile Sprint Planning, Random Forest, Resource\nOptimization, Risk Classification, FastAPI, Supervised Learning,\nWeighted Objective Function, Developer Burnout Detection,\nTechnical Debt\nI. INTRODUCTION\nSoftware engineering teams following Agile methodolo-\ngies rely heavily on sprint planning sessions to estimate\ntask durations and assign developers to user stories. Despite\ndecades of practice, these sessions are chronically affected\nby the Planning Fallacy—a well-documented cognitive bias in\nwhich individuals underestimate the time and effort required\nto complete future tasks, regardless of past experience [1].\nThe consequences of poor sprint planning are tangible:\novercommitted sprints result in missed deadlines, overtime,\ndeveloper burnout, and gradual accumulation of technical debt.\nConversely, over-conservative planning leads to underutilized\nresources and delayed feature delivery. Neither extreme serves\nthe engineering organization or its stakeholders.\nThe OptiSprint AI Engine addresses this problem by intro-\nducing a machine learning-driven simulation layer between\na project manager’s intent and final sprint commitments.\nRather than relying on a team’s collective memory of past\nperformance, OptiSprint ingests historical sprint logs, trains\npredictive models on structured features, and generates scored\nrecommendations that balance delivery speed against delivery\nsafety.\nThis research makes the following contributions:\n• A dual-model pipeline combining regression and classi-\nfication to produce both a time estimate and a delay risk\nscore for every developer-task pairing.\n• A Weighted Objective Function that formalizes the trade-\noff between efficiency and risk into a single actionable\nscore.\n• A real-time load management system built on MySQL to\nenforce capacity constraints dynamically.\n• An Audit Layer performing post-prediction quality\nchecks, identifying burnout risks and skill-complexity\nmismatches before recommendations are committed.\nII. LITERATURE REVIEW\nThe intersection of machine learning and software project\nmanagement has attracted growing research attention. Early\nwork established that historical project data contains predictive\nsignal that deterministic planning models fail to exploit.\nEfforts in software effort estimation [2] showed that en-\nsemble methods outperform single-model approaches on high-\nvariance project datasets. Researchers applied Random Forest\nmodels to story-point estimation in Agile contexts [3], finding\nthat feature engineering around team composition and velocity\nsubstantially improved accuracy.\n\n-- 1 of 4 --\n\nRisk classification in software projects has been approached\nvia logistic regression [4] and gradient boosting [5], with\nthe latter demonstrating superior performance on imbalanced\ndatasets where delay events are rarer than on-time comple-\ntions. Sprint-level delay prediction remains an underexplored\narea.\nMulti-objective scheduling in software teams has been\nframed as a constraint satisfaction problem [6], typically\nrequiring domain experts to encode constraints manually. A\nlearned Weighted Objective Function offers a more adaptive\nalternative.\nDeveloper burnout has been studied extensively in organiza-\ntional behavior literature [7], but integration of burnout signals\ninto automated planning tools is novel. Technical debt from\nskill-complexity mismatches has been discussed qualitatively\n[8] but not operationalized as a runtime audit check.\nThe present work synthesizes these strands by delivering a\nunified system combining prediction, optimization, and audit\nin a single inference pipeline.\nIII. PROBLEM STATEMENT\nTraditional Agile sprint planning falls victim to the Planning\nFallacy, where human bias leads to underestimating task com-\nplexity and overestimating developer velocity. This research\naddresses the need for a systematic, data-driven approach to\nresource allocation that balances speed with delivery safety.\nSpecifically, the system must address the following chal-\nlenges:\n• Predicting actual task completion hours accurately from\nstructural features such as story points and developer\nexperience.\n• Estimating the probability of task delay as a continuous\nrisk score in the range [0.0, 1.0].\n• Combining time and risk signals into a unified assignment\nscore that planners can act upon.\n• Enforcing capacity constraints to prevent any developer\nfrom being over-allocated during a sprint.\n• Identifying potentially harmful assignments from a well-\nbeing or quality standpoint before they are committed.\nIV. METHODOLOGY: THE TRAIN-BRAIN PIPELINE\nThe OptiSprint system is built around a supervised learning\narchitecture trained on historical sprint data. The pipeline\ntransforms raw project artifacts into structured numerical fea-\ntures, trains two independent models, and exposes their outputs\nthrough a REST API for real-time inference.\nA. Data Transformation\nRaw project logs are preprocessed into a tabular feature\nmatrix. Key engineered features include:\n• Story Points: Ordinal integer representing task complex-\nity estimated during backlog refinement.\n• Experience Level: Ordinal encoding of developer senior-\nity — 1 for Junior, 2 for Mid-level, 3 for Senior.\n• Team Load Percentage: Current utilization of the as-\nsigned developer, expressed as 0–100.\n• Actual Hours (Regression Target): Ground-truth com-\npletion time from sprint retrospective logs.\n• Delayed (Classification Target): Binary label indicating\nwhether a task exceeded its planned sprint boundary.\nB. Dual-Model Architecture\nTwo models are trained independently on the feature set:\n• Time Model (Random Forest Regressor): Predicts\ncontinuous Actual Hours. The ensemble handles non-\nlinear interactions between experience level and story\ncomplexity, minimizing Mean Squared Error (MSE).\n• Risk Model (Random Forest Classifier): Estimates\ndelay probability as a continuous score in [0.0, 1.0],\npreferred over a hard binary label to enable downstream\nweighting.\nFig. 1. OptiSprint Train-Brain Pipeline: from raw sprint logs to model-ready\nfeatures and dual-model inference.\nV. SYSTEM ARCHITECTURE & INFERENCE\nThe production inference system implements a decoupled\ntechnical stack designed for low-latency response and stateful\nload tracking.\nA. Backend Inference Server\nA FastAPI application hosts the predictive models. At\nstartup, both models are deserialized from .pkl files using\njoblib, making them available in memory for sub-second\ninference on incoming POST requests containing task meta-\ndata.\nB. Weighted Objective Function\nThe core optimization logic is encoded in the scoring\nformula:\nScore = ( ˆ\tH × 0.7) + (R × 100 × 0.3) (1)\nwhere ˆ\tH is the predicted completion hours and R is the\nestimated delay risk probability. This formulation ensures 70%\nof the assignment decision is driven by raw efficiency while\nthe remaining 30% acts as a safety buffer penalizing high-\nrisk assignments. The developer with the lowest combined\nscore for a given task receives the recommendation. The\nfactor of 100 normalizes the risk component to the same\norder of magnitude as hour estimates, making the weighting\nmeaningful.\n\n-- 2 of 4 --\n\nC. Operational Load Management\nA MySQL database maintains a CurrentLoad table\nrecording cumulative assigned hours for every developer\nwithin the active sprint window. Each inference call atomi-\ncally updates the record, preventing the optimizer from over-\nassigning work to a single high-performing developer.\nVI. THE AUDIT & QUALITY LAYER\nA post-prediction Audit Layer validates each recommended\nassignment against two categories of risk before surfacing\nresults to the project planner.\nA. Burnout Risk Detection\nAny developer whose cumulative sprint load would exceed\n40 hours is flagged. This threshold aligns with standard\noccupational health guidelines. Flagged assignments surface as\nwarnings rather than hard blocks, preserving planner agency\nwhile ensuring visibility.\nB. Skill-Complexity Mismatch Detection\nAssignments where a Junior developer (level 1) is matched\nto a high-complexity task (story points ≥ 8) trigger a strategic\nmismatch warning, as such pairings are statistically associated\nwith elevated technical debt and increased defect rates.\nFig. 2. Audit Layer decision flow: burnout threshold check and skill-\ncomplexity mismatch det",
-        "wordCount": 1366
+        "content": "",
+        "wordCount": 0
       }
     }
   ],
   "stats": {
-    "totalInserts": 8,
-    "totalDeletes": 4,
-    "totalSearches": 55,
-    "lastSnapshot": "2026-05-04T10:35:32.990Z"
+    "totalInserts": 11,
+    "totalDeletes": 0,
+    "totalSearches": 0,
+    "lastSnapshot": null
   }
 }

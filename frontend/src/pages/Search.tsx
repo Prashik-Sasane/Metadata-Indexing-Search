@@ -64,6 +64,7 @@ const SearchInterface = () => {
               <Link to="/dashboard" className="hover:text-slate-900 transition-colors">Overview</Link>
               <button className="text-slate-900 border-b-2 border-blue-600 pb-1">Search</button>
               <Link to="/upload" className="hover:text-slate-900 transition-colors">Upload</Link>
+              <Link to="/crawler" className="hover:text-slate-900 transition-colors">Crawler</Link>
             </div>
           </div>
         </div>

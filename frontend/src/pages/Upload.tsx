@@ -65,6 +65,7 @@ export default function Upload() {
               <Link to="/dashboard" className="hover:text-slate-900 transition-colors">Overview</Link>
               <Link to="/search" className="hover:text-slate-900 transition-colors">Search</Link>
               <button className="text-slate-900 border-b-2 border-blue-600 pb-1">Upload</button>
+              <Link to="/crawler" className="hover:text-slate-900 transition-colors">Crawler</Link>
             </div>
           </div>
         </div>

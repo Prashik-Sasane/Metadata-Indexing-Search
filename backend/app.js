@@ -16,6 +16,7 @@ const { connectDB } = require('./config/db');
 const { initIndexManager } = require('./src/services/indexManagerSingleton');
 const searchRoutes = require('./src/routes/searchRoutes');
 const fileRoutes = require('./src/routes/fileRoutes');
+const crawlerRoutes = require('./src/routes/crawlerRoutes');
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use(
 // API Routes - Versioned v1
 app.use('/api/v1', searchRoutes);
 app.use('/api/v1', fileRoutes);
+app.use('/api/v1', crawlerRoutes);
 
 // Legacy route support (backward compatibility)
 // const legacyRouter = require('./routes/route');

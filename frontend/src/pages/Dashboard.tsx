@@ -53,6 +53,7 @@ const UnifiedDashboard = () => {
               <button className="text-slate-900 border-b-2 border-blue-600 pb-1">Overview</button>
               <Link to="/search" className="hover:text-slate-900 transition-colors">Search</Link>
               <Link to="/upload" className="hover:text-slate-900 transition-colors">Upload</Link>
+              <Link to="/crawler" className="hover:text-slate-900 transition-colors">Crawler</Link>
             </div>
           </div>
         </div>
