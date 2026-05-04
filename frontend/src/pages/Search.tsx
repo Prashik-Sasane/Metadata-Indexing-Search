@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { searchAPI } from '../api/client';
 import {
-  Search, FileText, Activity, Cpu, Binary,
+  Search, FileText, Activity, Binary,
   ChevronRight, Clock, Tag, BarChart3,
   GitBranch, Layers, Hash
 } from 'lucide-react';
@@ -384,15 +384,6 @@ const SearchInterface = () => {
     </div>
   );
 };
-
-function SpecItem({ label, value }: any) {
-  return (
-    <div className="flex justify-between items-center py-2.5 border-b border-slate-200 last:border-0 group">
-      <span className="text-xs text-slate-500 font-medium group-hover:text-slate-800 transition-colors">{label}</span>
-      <span className="text-xs font-mono font-bold text-slate-900">{value}</span>
-    </div>
-  );
-}
 
 function DSAMetric({ icon, label, value, complexity, color }: any) {
   const colorClasses: any = {

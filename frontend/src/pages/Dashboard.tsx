@@ -1,9 +1,8 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { searchAPI, filesAPI } from '../api/client';
 import {
-  Binary, Activity, Database, Cpu, Zap, Layers, BarChart3,
+  Binary, Activity, Database, Cpu, Layers, BarChart3,
   HardDrive, ChevronRight, ArrowUpRight, FileText, Clock,
   Upload, Search, Box, TrendingUp, Hash, GitBranch
 } from 'lucide-react';
@@ -30,7 +29,6 @@ const UnifiedDashboard = () => {
   const totalSize = dbStats.totalSizeFormatted || '0 Bytes';
   const recentFiles = filesData?.data || [];
   const totalSearches = dsaStats.operations?.totalSearches || 0;
-  const totalInserts = dsaStats.operations?.totalInserts || 0;
   const suffixChars = dsaStats.suffixArray?.totalChars || 0;
   const triePaths = dsaStats.trie?.totalPaths || 0;
 

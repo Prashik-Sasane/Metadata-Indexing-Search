@@ -4,7 +4,7 @@ import { crawlerAPI } from '../api/client';
 import CrawlGraph from '../components/CrawlGraph';
 import {
   Binary, Globe, Play, Loader2, ExternalLink, ChevronDown, ChevronRight,
-  Layers, Clock, Hash, GitBranch, BarChart3, Trash2, Network, Search,
+  Layers, Clock, Hash, GitBranch, BarChart3, Trash2, Network,
   ArrowRight, Zap
 } from 'lucide-react';
 
