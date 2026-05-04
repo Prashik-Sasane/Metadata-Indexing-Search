@@ -612,23 +612,34 @@ audit_log                    ← Immutable event log
 git clone https://github.com/your-username/Metadata-Indexing-Search.git
 cd Metadata-Indexing-Search
 
-# 2. Copy environment file
-cp .env.example .env
-# Fill in AWS credentials, DB URLs, etc.
+# 2. Start PostgreSQL with Podman
+podman run -d --replace \
+  --name postg \
+  -e POSTGRES_USER=myuser \
+  -e POSTGRES_PASSWORD=mypassword \
+  -e POSTGRES_DB=mydatabase \
+  -p 5432:5432 \
+  docker.io/library/postgres:16
 
-# 3. Start all services (Postgres, Redis, Kafka, Go services, React)
-docker-compose up --build
+# 3. Configure the backend
+cd backend
+cp .env.example .env
+npm install
 
 # 4. Run database migrations
-make migrate
+npm run migrate
 
-# 5. Seed with 1M synthetic files
-make seed
+# 5. Start the API
+npm run dev
 
-# 6. Open the app
-# Frontend: http://localhost:3000
-# API:      http://localhost:8080
-# Swagger:  http://localhost:8080/swagger
+# 6. Start the frontend in a second terminal
+cd ../frontend
+npm install
+npm run dev
+
+# 7. Open the app
+# Frontend: http://localhost:5173
+# API:      http://localhost:3000/api/v1
 ```
 
 ---

@@ -4,20 +4,9 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  timeout: 30000,
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 60000,
 });
-
-// Logs
-apiClient.interceptors.request.use(
-  (config) => {
-    console.log('[API Request]', config.method?.toUpperCase(), config.url, config.data);
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -31,53 +20,54 @@ apiClient.interceptors.response.use(
 // SEARCH API
 // ----------------------------
 export const searchAPI = {
-  // Main search endpoint (supports structured params)
   search: (params: {
     prefix?: string;
     tag?: string;
     sizeMin?: number;
     sizeMax?: number;
+    mimeType?: string;
     topK?: number;
     sort?: string;
-  }) =>
-    apiClient.get('/search', { params }),
+  }) => apiClient.get('/search', { params }),
 
-  // Autocomplete suggestions
   getSuggestions: (prefix: string, limit: number = 10) =>
-    apiClient.get('/search/suggestions', {
-      params: { prefix, limit }
-    }),
+    apiClient.get('/search/suggestions', { params: { prefix, limit } }),
 
-  // Stats
-  getStats: () =>
-    apiClient.get('/search/stats'),
+  getStats: () => apiClient.get('/search/stats'),
 };
 
 // ----------------------------
-// FILES API (FIXED VERSION)
+// FILES API
 // ----------------------------
 export const filesAPI = {
+  // Direct multipart file upload
+  upload: (file: File, tags?: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (tags) formData.append('tags', tags);
+    return apiClient.post('/files/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    });
+  },
+
+  // Presigned URL flow
   getUploadUrl: (fileName: string, mimeType: string) =>
     apiClient.post('/files/upload-url', { fileName, mimeType }),
 
-  create: (data: any) =>
-    apiClient.post('/files', data),
+  create: (data: any) => apiClient.post('/files', data),
 
   getDownloadUrl: (id: string) =>
     apiClient.get(`/files/${id}/download-url`),
 
-  // ✔ Missing functions (Added)
-  list: (params?: any) =>
-    apiClient.get('/files', { params }),
+  list: (params?: any) => apiClient.get('/files', { params }),
 
-  getById: (id: string) =>
-    apiClient.get(`/files/${id}`),
+  getById: (id: string) => apiClient.get(`/files/${id}`),
 
-  delete: (id: string) =>
-    apiClient.delete(`/files/${id}`),
+  delete: (id: string) => apiClient.delete(`/files/${id}`),
 
   updateTags: (id: string, tags: Record<string, boolean>) =>
-    apiClient.put(`/files/${id}/tags`, { tags }),
+    apiClient.put(`/files/${id}`, { tags }),
 };
 
 export default apiClient;

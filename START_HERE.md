@@ -15,16 +15,17 @@ cd backend
 npm install
 ```
 
-### Step 2: Start PostgreSQL Database
+### Step 2: Start PostgreSQL Database with Podman
 
 ```bash
-# Using Docker (easiest)
-docker run -d --name metadata-postgres \
-  -e POSTGRES_DB=metadata_search \
-  -e POSTGRES_USER=admin \
-  -e POSTGRES_PASSWORD=secret \
+# Using Podman
+podman run -d --replace \
+  --name postg \
+  -e POSTGRES_USER=myuser \
+  -e POSTGRES_PASSWORD=mypassword \
+  -e POSTGRES_DB=mydatabase \
   -p 5432:5432 \
-  postgres:16-alpine
+  docker.io/library/postgres:16
 
 # Wait 10 seconds for it to start
 ```
@@ -33,6 +34,7 @@ docker run -d --name metadata-postgres \
 
 ```bash
 cd backend
+cp .env.example .env
 npm run migrate
 ```
 
@@ -154,10 +156,10 @@ npm install  # This fixes all TS errors
 ### Backend Can't Connect to Database?
 ```bash
 # Check if PostgreSQL is running
-docker ps | grep postgres
+podman ps | grep postg
 
 # If not running, start it
-docker start metadata-postgres
+podman start postg
 
 # Then run migrations
 cd backend

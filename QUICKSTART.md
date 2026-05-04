@@ -4,47 +4,32 @@
 
 ### Prerequisites
 - Node.js 18+ installed
-- Docker and Docker Compose installed
+- Podman installed
 - (Optional) AWS credentials for S3 integration
 
-### Option 1: Docker Compose (Recommended)
-
-```bash
-# 1. Clone the repository
-git clone <your-repo-url>
-cd Metadata-Indexing-Search
-
-# 2. Copy environment file
-cp backend/.env.example backend/.env
-
-# 3. Start all services (PostgreSQL, Redis, Kafka, Backend)
-docker-compose up -d
-
-# 4. Check logs
-docker-compose logs -f backend
-
-# 5. API is now running at http://localhost:3000
-```
-
-### Option 2: Local Development
+### Local Development
 
 ```bash
 # 1. Install dependencies
 cd backend
 npm install
 
-# 2. Start MySQL locally (or use Docker)
-docker run -d --name metadata-search-mysql \
-  -e MYSQL_DATABASE=metadata_search \
-  -e MYSQL_USER=admin \
-  -e MYSQL_PASSWORD=secret \
-  -p 3308:3306 \
-  mysql:8.0
+# 2. Start PostgreSQL with Podman
+podman run -d --replace \
+  --name postg \
+  -e POSTGRES_USER=myuser \
+  -e POSTGRES_PASSWORD=mypassword \
+  -e POSTGRES_DB=mydatabase \
+  -p 5432:5432 \
+  docker.io/library/postgres:16
 
-# 3. Run migrations
+# 3. Create local backend env
+cp .env.example .env
+
+# 4. Run migrations
 npm run migrate
 
-# 4. Start the server
+# 5. Start the server
 npm run dev
 ```
 
@@ -197,10 +182,10 @@ npm run benchmark
 ### PostgreSQL connection error
 ```bash
 # Check if PostgreSQL is running
-docker ps | grep postgres
+podman ps | grep postg
 
 # Restart PostgreSQL
-docker-compose restart postgres
+podman restart postg
 ```
 
 ### Port already in use
@@ -214,9 +199,15 @@ kill -9 <PID>
 
 ### Database migrations failed
 ```bash
-# Drop and recreate database
-docker-compose down -v
-docker-compose up -d
+# Recreate the PostgreSQL container
+podman rm -f postg
+podman run -d --replace \
+  --name postg \
+  -e POSTGRES_USER=myuser \
+  -e POSTGRES_PASSWORD=mypassword \
+  -e POSTGRES_DB=mydatabase \
+  -p 5432:5432 \
+  docker.io/library/postgres:16
 ```
 
 ## 📚 Next Steps
