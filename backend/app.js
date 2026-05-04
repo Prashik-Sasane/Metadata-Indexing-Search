@@ -1,5 +1,10 @@
 require('dotenv').config();
 
+// Prevent crashes from unhandled promise rejections (e.g. pdf-parse v2 destroy bug)
+process.on('unhandledRejection', (reason, promise) => {
+  console.warn('[process] Unhandled Rejection:', reason?.message || reason);
+});
+
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');

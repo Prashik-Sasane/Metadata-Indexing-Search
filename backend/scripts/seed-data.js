@@ -3,15 +3,8 @@
  * Run: node backend/scripts/seed-data.js
  */
 
-const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
-
-// Database configuration (Supabase)
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  family: 4  
-});
+const { pool } = require('../config/db');
 
 // Sample data pools
 const FILE_NAMES = [
@@ -167,7 +160,7 @@ async function insertBatch(files) {
  */
 async function seedData(numFiles = 10000) {
   console.log(`🚀 Starting data seeder: ${numFiles.toLocaleString()} files`);
-  console.log(`📊 Using Supabase: ${process.env.DATABASE_URL}`);
+  console.log(`📊 Using PostgreSQL: ${process.env.DATABASE_URL}`);
 
   try {
     const batchSize = 100;

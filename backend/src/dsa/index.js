@@ -7,6 +7,8 @@ const { BPlusTree, BPlusTreeNode } = require('./bPlusTree');
 const { AVLTree, AVLNode } = require('./avlTree');
 const { MinHeap, MaxHeap, PriorityQueue } = require('./heap');
 const { BTreeDisk, BTreeDiskNode } = require('./bTree');
+const { HashMap } = require('./hashMap');
+const { SuffixArray } = require('./suffixArray');
 const { IndexManager } = require('./indexManager');
 
 module.exports = {
@@ -21,5 +23,7 @@ module.exports = {
   PriorityQueue,
   BTreeDisk,
   BTreeDiskNode,
+  HashMap,
+  SuffixArray,
   IndexManager,
 };

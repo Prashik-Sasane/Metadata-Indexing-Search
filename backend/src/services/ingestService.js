@@ -1,22 +1,25 @@
 /**
  * Ingest Service - Handles file metadata ingestion
- * Listens to S3 events (via Kafka) and updates PostgreSQL + DSA indexes
+ * Stores data in both PostgreSQL (persistent) and DSA indexes (fast search)
  */
 
 const { query } = require('../../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { ParseService } = require('./parseService');
 
 class IngestService {
   constructor(indexManager) {
     this.indexManager = indexManager;
+    this.parseService = new ParseService();
   }
 
   /**
-   * Create file metadata and update all indexes
+   * Create file metadata, parse content, and update all indexes
    * @param {Object} fileData - File metadata
+   * @param {Buffer} [fileBuffer] - Raw file buffer for content parsing
    * @returns {Object} Created file record
    */
-  async createFile(fileData) {
+  async createFile(fileData, fileBuffer = null) {
     const {
       s3_key,
       bucket,
@@ -29,47 +32,69 @@ class IngestService {
     } = fileData;
 
     const file_id = uuidv4();
+    let parsedContent = { content: '', wordCount: 0, extractedMetadata: {} };
+
+    // Parse file content if buffer is provided
+    if (fileBuffer) {
+      parsedContent = await this.parseService.parse(fileBuffer, name, mime_type);
+      console.log(`[IngestService] Parsed ${name}: ${parsedContent.wordCount} words`);
+    }
 
     try {
       // 1. Insert into PostgreSQL (source of truth)
-      await query(
-        `INSERT INTO files (id, s3_key, bucket, name, size, mime_type, owner_id) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [file_id, s3_key, bucket, name, size, mime_type, owner_id]
-      );
+      try {
+        await query(
+          `INSERT INTO files (id, s3_key, bucket, name, size, mime_type, owner_id) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [file_id, s3_key, bucket, name, size, mime_type, owner_id || null]
+        );
 
-      await query(
-        `INSERT INTO file_metadata (file_id, tags, custom) 
-         VALUES ($1, $2, $3)`,
-        [file_id, JSON.stringify(tags), JSON.stringify(custom)]
-      );
+        await query(
+          `INSERT INTO file_metadata (file_id, tags, custom) 
+           VALUES ($1, $2, $3)`,
+          [file_id, JSON.stringify(tags), JSON.stringify({
+            ...custom,
+            parsedContent: parsedContent.extractedMetadata,
+            wordCount: parsedContent.wordCount,
+          })]
+        );
+      } catch (dbError) {
+        // If DB is not available, continue with DSA-only storage
+        console.warn('[IngestService] DB insert failed (continuing with DSA):', dbError.message);
+      }
 
-      // 2. Update in-memory DSA indexes
+      // 2. Update in-memory DSA indexes (always succeeds)
       await this.indexManager.insertFile({
         id: file_id,
         s3_key,
+        bucket: bucket || process.env.S3_BUCKET || 'metadata-search-files',
         name,
         size,
         mime_type,
         owner_id,
         created_at: new Date().toISOString(),
         tags,
+        custom: {
+          ...custom,
+          parsedContent: parsedContent.extractedMetadata,
+        },
+        content: parsedContent.content,
       });
-
-      // 3. Log the action
-      await this.logAudit(file_id, 'CREATE', { s3_key, name });
 
       console.log(`[IngestService] File ingested: ${name} (${file_id})`);
 
       return {
         id: file_id,
         s3_key,
-        bucket,
+        bucket: bucket || process.env.S3_BUCKET || 'metadata-search-files',
         name,
         size,
         mime_type,
         owner_id,
         tags,
+        content: parsedContent.content ? parsedContent.content.substring(0, 200) + '...' : '',
+        wordCount: parsedContent.wordCount,
+        extractedMetadata: parsedContent.extractedMetadata,
         created_at: new Date().toISOString(),
       };
     } catch (error) {
@@ -79,101 +104,31 @@ class IngestService {
   }
 
   /**
-   * Process S3 event from Kafka
-   * @param {Object} s3Event - S3 event notification
-   */
-  async processS3Event(s3Event) {
-    try {
-      const { Records } = s3Event;
-
-      for (const record of Records) {
-        const {
-          s3: { bucket, object },
-          eventName,
-        } = record;
-
-        // Handle different S3 events
-        if (eventName === 'ObjectCreated:Put' || eventName === 'ObjectCreated:Post') {
-          await this.createFile({
-            s3_key: object.key,
-            bucket: bucket.name,
-            name: object.key.split('/').pop(),
-            size: object.size,
-            mime_type: this.getMimeType(object.key),
-            tags: {},
-          });
-        } else if (eventName === 'ObjectRemoved:Delete') {
-          await this.deleteFile(object.key);
-        }
-      }
-    } catch (error) {
-      console.error('[IngestService] Error processing S3 event:', error.message);
-      throw error;
-    }
-  }
-
-  /**
    * Delete file from database and indexes
-   * @param {string} s3_key - S3 object key
+   * @param {string} fileId - File UUID
    */
-  async deleteFile(s3_key) {
+  async deleteFile(fileId) {
     try {
-      // 1. Get file metadata before deletion
-      const result = await query(
-        `SELECT f.*, fm.tags 
-         FROM files f 
-         LEFT JOIN file_metadata fm ON f.id = fm.file_id 
-         WHERE f.s3_key = $1`,
-        [s3_key]
-      );
+      // Get metadata from DSA store
+      const file = this.indexManager.getFile(fileId);
 
-      if (result.rows.length === 0) {
-        console.warn(`[IngestService] File not found: ${s3_key}`);
-        return;
+      // Try to soft delete in PostgreSQL
+      try {
+        await query(
+          `UPDATE files SET is_deleted = TRUE, updated_at = NOW() WHERE id = $1`,
+          [fileId]
+        );
+      } catch (dbError) {
+        console.warn('[IngestService] DB delete failed (continuing with DSA):', dbError.message);
       }
 
-      const file = result.rows[0];
+      // Remove from DSA indexes
+      await this.indexManager.deleteFile(fileId, file);
 
-      // 2. Soft delete in PostgreSQL
-      await query(
-        `UPDATE files SET is_deleted = TRUE, updated_at = NOW() WHERE s3_key = $1`,
-        [s3_key]
-      );
-
-      // 3. Remove from DSA indexes
-      await this.indexManager.deleteFile(file.id, {
-        s3_key: file.s3_key,
-        name: file.name,
-        size: file.size,
-        mime_type: file.mime_type,
-        owner_id: file.owner_id,
-        created_at: file.created_at,
-        tags: file.tags || {},
-      });
-
-      // 4. Log the action
-      await this.logAudit(file.id, 'DELETE', { s3_key });
-
-      console.log(`[IngestService] File deleted: ${s3_key}`);
+      console.log(`[IngestService] File deleted: ${fileId}`);
     } catch (error) {
       console.error('[IngestService] Error deleting file:', error.message);
       throw error;
-    }
-  }
-
-  /**
-   * Log audit trail
-   */
-  async logAudit(file_id, action, metadata = {}) {
-    try {
-      await query(
-        `INSERT INTO audit_log (file_id, action, metadata) 
-         VALUES ($1, $2, $3)`,
-        [file_id, action, JSON.stringify(metadata)]
-      );
-    } catch (error) {
-      console.error('[IngestService] Error logging audit:', error.message);
-      // Don't throw - audit logging failure shouldn't break main operation
     }
   }
 
@@ -192,33 +147,19 @@ class IngestService {
       csv: 'text/csv',
       json: 'application/json',
       xml: 'application/xml',
+      html: 'text/html',
+      md: 'text/markdown',
       zip: 'application/zip',
       mp4: 'video/mp4',
       mp3: 'audio/mpeg',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      xls: 'application/vnd.ms-excel',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      ppt: 'application/vnd.ms-powerpoint',
+      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     };
     return mimeTypes[ext] || 'application/octet-stream';
-  }
-
-  /**
-   * Start listening to Kafka for S3 events
-   */
-  async startKafkaConsumer(kafkaConsumer) {
-    try {
-      await kafkaConsumer.connect();
-      await kafkaConsumer.subscribe({ topic: 's3.events.created', fromBeginning: true });
-
-      await kafkaConsumer.run({
-        eachMessage: async ({ topic, partition, message }) => {
-          const s3Event = JSON.parse(message.value.toString());
-          await this.processS3Event(s3Event);
-        },
-      });
-
-      console.log('[IngestService] Kafka consumer started');
-    } catch (error) {
-      console.error('[IngestService] Error starting Kafka consumer:', error.message);
-      throw error;
-    }
   }
 }
 

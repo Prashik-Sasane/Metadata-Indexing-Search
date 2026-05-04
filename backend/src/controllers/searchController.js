@@ -35,19 +35,26 @@ async function search(req, res, next) {
     const dsaVisualization = {
       searchType: results.performance?.searchType || 'unknown',
       trieVisited: 0,
+      suffixArrayComparisons: 0,
       bPlusNodesVisited: 0,
       avlComparisons: 0,
       heapOperations: 0,
-      totalCandidates: results.performance?.count || 0,
-      executionTime: results.performance?.executionTime || 0,
+      totalCandidates: results.pagination?.total || 0,
+      executionTime: parseInt(results.performance?.executionTime) || 0,
     };
 
     // Calculate DSA operations based on search type
     if (searchParams.prefix) {
-      dsaVisualization.trieVisited = searchParams.prefix.length + 1; // Path length + root
+      const saStats = indexManager.suffixArray.getStats();
+      // Suffix Array: binary search = O(m·log n) comparisons
+      dsaVisualization.suffixArrayComparisons = Math.ceil(
+        searchParams.prefix.length * Math.log2(Math.max(saStats.suffixArraySize, 1))
+      );
+      // Trie: path length traversal
+      dsaVisualization.trieVisited = searchParams.prefix.length + 1;
     }
     if (searchParams.sizeMin !== undefined || searchParams.sizeMax !== undefined) {
-      dsaVisualization.bPlusNodesVisited = Math.ceil(Math.log2(results.performance?.count || 100) * 2);
+      dsaVisualization.bPlusNodesVisited = Math.ceil(Math.log2(results.pagination?.total || 100) * 2);
     }
     if (searchParams.tag) {
       dsaVisualization.avlComparisons = Math.ceil(Math.log2(indexManager.getStats().avlTreeTags?.nodeCount || 1000));

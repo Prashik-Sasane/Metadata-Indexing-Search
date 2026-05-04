@@ -1,4 +1,7 @@
-const { query } = require('../../config/db.js');
+/**
+ * Search Service - Executes search queries using DSA structures
+ * Uses IndexManager for fast in-memory search, hydrates from HashMap
+ */
 
 class SearchService {
   constructor(indexManager) {
@@ -7,24 +10,14 @@ class SearchService {
 
   /**
    * Execute search query using DSA structures
-   * @param {Object} searchParams - Search parameters
-   * @returns {Object} Search results with pagination
    */
   async search(searchParams) {
     const startTime = Date.now();
 
     const {
-      prefix,
-      sizeMin,
-      sizeMax,
-      dateFrom,
-      dateTo,
-      tag,
-      owner,
-      topK,
-      sort,
-      page = 1,
-      limit = 50,
+      prefix, sizeMin, sizeMax, dateFrom, dateTo,
+      tag, owner, mimeType, topK, sort,
+      page = 1, limit = 50,
     } = searchParams;
 
     try {
@@ -37,12 +30,14 @@ class SearchService {
         dateTo,
         tag,
         owner,
+        mimeType,
         topK: topK ? parseInt(topK) : undefined,
         sort,
       });
 
-      // 2. Hydrate file metadata from PostgreSQL
-      const files = await this.hydrateFiles(dsaResult.fileIDs);
+      // 2. Hydrate file metadata from HashMap — O(1) per file
+      // Pass query to extract match context snippets
+      const files = this.hydrateFiles(dsaResult.fileIDs, prefix || tag || '');
 
       // 3. Apply pagination
       const paginatedFiles = this.paginate(files, page, limit);
@@ -71,13 +66,10 @@ class SearchService {
 
   /**
    * Get prefix suggestions for autocomplete
-   * @param {string} prefix - Search prefix
-   * @param {number} limit - Max suggestions
-   * @returns {string[]} Array of prefix suggestions
    */
   async getPrefixSuggestions(prefix, limit = 10) {
     try {
-      const prefixes = this.indexManager.trie.getPrefixes(3);
+      const prefixes = this.indexManager.trie.getPrefixes(5);
       return prefixes
         .filter(p => p.startsWith(prefix.toLowerCase()))
         .slice(0, limit);
@@ -88,56 +80,139 @@ class SearchService {
   }
 
   /**
-   * Hydrate file IDs with full metadata from PostgreSQL
-   * @param {string[]} fileIDs - Array of file UUIDs
-   * @returns {Object[]} Array of file objects
+   * Hydrate file IDs with full metadata from HashMap — O(1) per file
+   * Attaches match context snippets when a search query is provided
    */
-  async hydrateFiles(fileIDs) {
-  if (fileIDs.length === 0) {
-    return [];
+  hydrateFiles(fileIDs, query = '') {
+    if (!fileIDs || fileIDs.length === 0) return [];
+
+    const files = [];
+    const seen = new Set(); // Deduplicate
+    const q = (query || '').toLowerCase();
+
+    for (const id of fileIDs) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      const file = this.indexManager.getFile(id);
+      if (file) {
+        // Attach match context snippets if query exists
+        if (q.length > 0) {
+          file.matchSnippets = this._extractMatchSnippets(file, q);
+          file.matchCount = file.matchSnippets.reduce((sum, s) => sum + s.matches.length, 0);
+        }
+        files.push(file);
+      }
+    }
+
+    return files;
   }
 
-  try {
-    // PostgreSQL supports arrays directly — no placeholders needed
-    const result = await query(
-      `SELECT 
-        f.id,
-        f.s3_key,
-        f.bucket,
-        f.name,
-        f.size,
-        f.mime_type,
-        f.owner_id,
-        f.created_at,
-        f.updated_at,
-        fm.tags,
-        fm.custom
-       FROM files f
-       LEFT JOIN file_metadata fm ON f.id = fm.file_id
-       WHERE f.id = ANY($1) AND f.is_deleted = FALSE
-       ORDER BY f.created_at DESC`,
-      [fileIDs]  // <-- Passed as array
-    );
+  /**
+   * Extract VS Code-style match snippets from a file's content, name, and tags
+   * Returns contextual lines around each match occurrence
+   *
+   * @param {Object} file - File metadata object
+   * @param {string} query - Lowercase search query
+   * @returns {Array<{ field, matches: Array<{ line, lineNumber, column, contextBefore, contextAfter, matchText }> }>}
+   */
+  _extractMatchSnippets(file, query) {
+    const snippets = [];
+    const CONTEXT_CHARS = 60; // chars of context before/after match
 
-    return result.rows.map(row => ({
-      id: row.id,
-      s3_key: row.s3_key,
-      bucket: row.bucket,
-      name: row.name,
-      size: row.size,
-      mime_type: row.mime_type,
-      owner_id: row.owner_id,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-      tags: row.tags || {},
-      custom: row.custom || {},
-      sizeFormatted: this.formatFileSize(row.size),
-    }));
-  } catch (error) {
-    console.error('[SearchService] Hydrate files error:', error.message);
-    return [];
+    // 1. Check filename
+    const nameMatches = this._findMatches(file.name || '', query);
+    if (nameMatches.length > 0) {
+      snippets.push({
+        field: 'filename',
+        fieldLabel: 'File Name',
+        matches: nameMatches.map(m => ({
+          text: file.name,
+          matchStart: m.index,
+          matchEnd: m.index + query.length,
+          matchText: file.name.substring(m.index, m.index + query.length),
+        })),
+      });
+    }
+
+    // 2. Check tags
+    if (file.tags && typeof file.tags === 'object') {
+      const tagKeys = Object.keys(file.tags);
+      const tagMatches = tagKeys.filter(t => t.toLowerCase().includes(query));
+      if (tagMatches.length > 0) {
+        snippets.push({
+          field: 'tags',
+          fieldLabel: 'Tags',
+          matches: tagMatches.map(t => ({
+            text: t,
+            matchStart: t.toLowerCase().indexOf(query),
+            matchEnd: t.toLowerCase().indexOf(query) + query.length,
+            matchText: t,
+          })),
+        });
+      }
+    }
+
+    // 3. Check content — line-by-line with context (like grep/vscode)
+    if (file.content) {
+      const lines = file.content.split('\n');
+      const contentMatches = [];
+
+      for (let lineNum = 0; lineNum < lines.length && contentMatches.length < 10; lineNum++) {
+        const line = lines[lineNum];
+        const lineLower = line.toLowerCase();
+        let searchFrom = 0;
+
+        while (searchFrom < lineLower.length && contentMatches.length < 10) {
+          const idx = lineLower.indexOf(query, searchFrom);
+          if (idx === -1) break;
+
+          // Extract context around the match
+          const contextStart = Math.max(0, idx - CONTEXT_CHARS);
+          const contextEnd = Math.min(line.length, idx + query.length + CONTEXT_CHARS);
+          const contextText = line.substring(contextStart, contextEnd);
+
+          // Adjust match position relative to context
+          const relativeStart = idx - contextStart;
+
+          contentMatches.push({
+            lineNumber: lineNum + 1,
+            text: (contextStart > 0 ? '...' : '') + contextText + (contextEnd < line.length ? '...' : ''),
+            matchStart: relativeStart + (contextStart > 0 ? 3 : 0),
+            matchEnd: relativeStart + query.length + (contextStart > 0 ? 3 : 0),
+            matchText: line.substring(idx, idx + query.length),
+            column: idx + 1,
+          });
+
+          searchFrom = idx + query.length;
+        }
+      }
+
+      if (contentMatches.length > 0) {
+        snippets.push({
+          field: 'content',
+          fieldLabel: 'Content',
+          matches: contentMatches,
+        });
+      }
+    }
+
+    return snippets;
   }
-}
+
+  /**
+   * Find all occurrences of a substring (case-insensitive)
+   */
+  _findMatches(text, query) {
+    const matches = [];
+    const lower = text.toLowerCase();
+    let idx = 0;
+    while ((idx = lower.indexOf(query, idx)) !== -1) {
+      matches.push({ index: idx });
+      idx += query.length;
+    }
+    return matches;
+  }
 
   /**
    * Paginate results
@@ -155,41 +230,32 @@ class SearchService {
   }
 
   /**
-   * Format file size for display
+   * Get search and index statistics
    */
-  formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+  async getSearchStats() {
+    const stats = this.indexManager.getStats();
+    const fileStoreStats = stats.fileStore || {};
 
+    // Calculate total size from files in HashMap
+    const allFiles = this.indexManager.fileStore.values();
+    const totalSize = allFiles.reduce((sum, f) => sum + (f.size || 0), 0);
+
+    return {
+      dsaIndexes: stats,
+      database: {
+        totalFiles: fileStoreStats.size || 0,
+        totalSize,
+        totalSizeFormatted: this._formatFileSize(totalSize),
+      },
+    };
+  }
+
+  _formatFileSize(bytes) {
+    if (!bytes || bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-  }
-
-  /**
-   * Get search statistics
-   */
-  async getSearchStats() {
-    try {
-      const stats = this.indexManager.getStats();
-      
-      // Get database stats
-      const fileCount = await query('SELECT COUNT(*) as count FROM files WHERE is_deleted = FALSE');
-      const totalSize = await query('SELECT SUM(size) as sum FROM files WHERE is_deleted = FALSE');
-
-      return {
-        dsaIndexes: stats,
-        database: {
-          totalFiles: parseInt(fileCount.rows[0].count),
-          totalSize: parseInt(totalSize.rows[0].sum || 0),
-          totalSizeFormatted: this.formatFileSize(parseInt(totalSize.rows[0].sum || 0)),
-        },
-      };
-    } catch (error) {
-      console.error('[SearchService] Get stats error:', error.message);
-      throw error;
-    }
   }
 }
 

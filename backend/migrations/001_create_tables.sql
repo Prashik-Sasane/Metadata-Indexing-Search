@@ -1,5 +1,7 @@
 -- Migration 001: Create core tables for metadata indexing system
--- PostgreSQL / Supabase compatible
+-- PostgreSQL compatible
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Core file metadata table
 CREATE TABLE IF NOT EXISTS files (
@@ -31,9 +33,18 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Add foreign key constraint for owner_id
-ALTER TABLE files 
-ADD CONSTRAINT fk_files_owner 
-    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'fk_files_owner'
+    ) THEN
+        ALTER TABLE files
+        ADD CONSTRAINT fk_files_owner
+            FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_files_name ON files (name);
@@ -72,6 +83,8 @@ BEGIN
     RETURN NEW;
 END;
 $$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_files_updated_at ON files;
 
 CREATE TRIGGER update_files_updated_at
     BEFORE UPDATE ON files
