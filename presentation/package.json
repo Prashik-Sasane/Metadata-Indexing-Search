@@ -1,0 +1,12 @@
+{
+  "name": "metadata-indexing-search-presentation",
+  "version": "1.0.0",
+  "description": "Slidev presentation for Metadata-Indexing-Search project",
+  "scripts": {
+    "dev": "slidev"
+  },
+  "devDependencies": {
+    "@slidev/cli": "^0.49.0",
+    "@slidev/theme-default": "latest"
+  }
+}
